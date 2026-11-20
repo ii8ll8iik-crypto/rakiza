@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Rakiza — Contextual Citation & Ablation Studio</title>
+<style>
+  :root {
+    --bg: #060a13;
+    --panel: rgba(15, 23, 42, 0.9);
+    --card: rgba(30, 41, 59, 0.58);
+    --border: rgba(148, 163, 184, 0.16);
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --cyan: #38bdf8;
+    --emerald: #10b981;
+    --amber: #f59e0b;
+    --orange: #f97316;
+    --crimson: #f43f5e;
+    --violet: #a78bfa;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: radial-gradient(circle at 18% 12%, #0d1a33 0%, var(--bg) 55%);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    font-variant-numeric: tabular-nums;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 11px 18px;
+    background: rgba(6, 10, 19, 0.94);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+    gap: 12px;
+    z-index: 20;
+  }
+  .brand { display: flex; align-items: center; gap: 11px; }
+  .logo {
+    width: 34px; height: 34px; border-radius: 10px;
+    background: linear-gradient(135deg, #0284c7, #38bdf8 55%, #a78bfa);
+    display: grid; place-items: center; font-weight: 800; font-size: 15px; color: #04111f;
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.32);
+  }
+  .brand h1 { font-size: 15px; font-weight: 700; letter-spacing: 0.2px; }
+  .brand p { font-size: 10.5px; color: var(--muted); }
+  .tabs { display: flex; gap: 5px; background: rgba(15, 23, 42, 0.92); padding: 4px; border-radius: 10px; border: 1px solid var(--border); }
+  .tab {
+    border: none; background: transparent; color: var(--muted); padding: 6px 12px;
+    border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.18s; white-space: nowrap;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { background: linear-gradient(135deg, rgba(56,189,248,0.22), rgba(167,139,250,0.2)); color: #fff; border: 1px solid rgba(56,189,248,0.38); }
+  .kpis { display: flex; gap: 8px; }
+  .kpi {
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 5px 10px; font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; white-space: nowrap;
+  }
+  .kpi b { color: #fff; font-size: 12px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+
+  main { flex: 1; position: relative; overflow: hidden; }
+  .view { display: none; width: 100%; height: 100%; }
+  .view.active { display: flex; }
+
+  .stage { flex: 1; position: relative; overflow: hidden; }
+  canvas { width: 100%; height: 100%; display: block; cursor: grab; }
+  canvas:active { cursor: grabbing; }
+
+  .toolbar {
+    position: absolute; top: 12px; left: 12px; right: 12px;
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+    gap: 8px; pointer-events: none; z-index: 10;
+  }
+  .tool-group {
+    pointer-events: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 6px 9px; backdrop-filter: blur(12px); box-shadow: 0 8px 24px rgba(0,0,0,0.42);
+  }
+  .btn {
+    border: 1px solid var(--border); background: rgba(30, 41, 59, 0.85); color: var(--text);
+    padding: 5px 11px; border-radius: 7px; font-size: 11.5px; font-weight: 600; cursor: pointer; transition: 0.16s;
+  }
+  .btn:hover { border-color: var(--cyan); color: #fff; }
+  .btn.active-cyan { background: rgba(56, 189, 248, 0.22); border-color: var(--cyan); color: #fff; }
+  .btn.active-red { background: rgba(244, 63, 94, 0.22); border-color: var(--crimson); color: #fff; }
+  .btn.danger { background: linear-gradient(135deg, #e11d48, #f43f5e); border-color: #fb7185; color: #fff; width: 100%; padding: 8px; font-size: 12px; }
+  .btn.primary { background: linear-gradient(135deg, #0284c7, #38bdf8); border-color: #7dd3fc; color: #04111f; font-weight: 700; }
+
+  .chip {
+    border: 1px solid var(--border); background: rgba(15, 23, 42, 0.88); color: var(--muted);
+    padding: 4px 9px; border-radius: 16px; font-size: 11px; font-weight: 600; cursor: pointer; transition: 0.15s;
+  }
+  .chip:hover, .chip.active { color: #fff; border-color: var(--cyan); background: rgba(56, 189, 248, 0.18); }
+
+  .legend {
+    position: absolute; bottom: 12px; left: 12px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 9px;
+    padding: 7px 11px; font-size: 10.5px; color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap;
+    backdrop-filter: blur(10px);
+  }
+  .legend span { display: flex; align-items: center; gap: 5px; }
+
+  aside {
+    width: 375px; background: var(--panel); border-left: 1px solid var(--border);
+    padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
+    backdrop-filter: blur(14px);
+  }
+  .section-title { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.9px; color: var(--cyan); font-weight: 700; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 11px;
+  }
+  .paper-title { font-size: 13.5px; font-weight: 700; line-height: 1.4; color: #fff; margin-bottom: 5px; }
+  .meta-line { font-size: 11px; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; line-height: 1.45; }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 9px; }
+  .stat { background: rgba(15, 23, 42, 0.75); border: 1px solid var(--border); border-radius: 8px; padding: 7px 9px; }
+  .stat label { display: block; font-size: 10px; color: var(--muted); }
+  .stat value { display: block; font-size: 15px; font-weight: 800; color: #fff; margin-top: 2px; }
+  .stat value.cyan { color: var(--cyan); }
+  .stat value.red { color: var(--crimson); }
+  .stat value.amber { color: var(--amber); }
+
+  .list-item {
+    padding: 7px 9px; border-radius: 8px; background: rgba(15, 23, 42, 0.7);
+    border: 1px solid var(--border); margin-top: 6px; font-size: 11px; cursor: pointer; transition: 0.15s;
+  }
+  .list-item:hover { border-color: var(--cyan); background: rgba(56,189,248,0.12); }
+  .list-item .sub { font-size: 10px; color: var(--muted); margin-top: 3px; display: flex; justify-content: space-between; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 700; }
+  .b-red { background: rgba(244,63,94,0.2); color: #fda4af; border: 1px solid rgba(244,63,94,0.45); }
+  .b-amber { background: rgba(245,158,11,0.2); color: #fcd34d; border: 1px solid rgba(245,158,11,0.45); }
+  .b-cyan { background: rgba(56,189,248,0.2); color: #7dd3fc; border: 1px solid rgba(56,189,248,0.45); }
+  .b-green { background: rgba(16,185,129,0.2); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.45); }
+  .b-gray { background: rgba(148,163,184,0.18); color: #cbd5e1; border: 1px solid rgba(148,163,184,0.35); }
+
+  .tooltip {
+    position: fixed; pointer-events: none; z-index: 50; display: none;
+    max-width: 320px; background: rgba(6, 10, 19, 0.97); border: 1px solid rgba(56,189,248,0.5);
+    border-radius: 9px; padding: 9px 11px; font-size: 11px; box-shadow: 0 10px 30px rgba(0,0,0,0.65);
+  }
+  .tooltip b { color: #fff; display: block; margin-bottom: 3px; line-height: 1.35; }
+  .tooltip span { color: var(--muted); line-height: 1.4; display: block; }
+
+  .auditor-wrap {
+    width: 100%; height: 100%; overflow-y: auto; padding: 22px 28px;
+    display: grid; grid-template-columns: 410px 1fr; gap: 20px; align-items: start;
+  }
+  textarea, input[type="text"], input[type="password"], select {
+    width: 100%; background: rgba(6, 10, 19, 0.88); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px;
+    font-family: inherit; font-size: 12px; outline: none;
+  }
+  textarea { min-height: 190px; font-family: 'JetBrains Mono', monospace; line-height: 1.45; resize: vertical; }
+  textarea:focus, input:focus, select:focus { border-color: var(--cyan); }
+  .audit-results { display: flex; flex-direction: column; gap: 11px; }
+  .chain-box {
+    margin-top: 7px; padding: 7px 9px; border-radius: 7px; background: rgba(6, 10, 19, 0.75);
+    border-left: 3px solid var(--cyan); font-size: 10.5px; color: #cbd5e1; line-height: 1.45;
+  }
+  .agent-msg {
+    white-space: pre-wrap; font-size: 12px; line-height: 1.6; color: #f1f5f9;
+    background: rgba(6, 10, 19, 0.68); border: 1px solid var(--border); border-radius: 9px; padding: 12px;
+  }
+  @media (max-width: 1024px) {
+    aside { width: 310px; }
+    .auditor-wrap { grid-template-columns: 1fr; }
+    .kpis { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="logo">R</div>
+    <div>
+      <h1>Rakiza <span style="color:var(--cyan);font-weight:500;">Contextual Graph Studio</span></h1>
+      <p>Relate Single-File Engine · Temporal Auditing · Node Ablation · Retraction Radar</p>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('graph')">1. Timeline & Ablation</button>
+    <button class="tab" onclick="switchTab('case')">2. Retraction Radar</button>
+    <button class="tab" onclick="switchTab('audit')">3. BibTeX / DOI Auditor</button>
+    <button class="tab" onclick="switchTab('agent')">4. Rakiza AI Agent</button>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><span class="dot" style="background:var(--cyan)"></span>graph.rl <b id="kpi-g">306</b></div>
+    <div class="kpi"><span class="dot" style="background:var(--crimson)"></span>Inverted <b id="kpi-inv">23</b></div>
+    <div class="kpi"><span class="dot" style="background:var(--amber)"></span>case.rl <b id="kpi-c">373</b></div>
+  </div>
+</header>
+
+<main>
+  <!-- VIEW 1: TIMELINE & ABLATION -->
+  <section id="view-graph" class="view active">
+    <div class="stage">
+      <div class="toolbar">
+        <div class="tool-group">
+          <button id="btn-clean" class="btn active-cyan" onclick="setGraphMode('clean')">Temporally Clean (582 edges)</button>
+          <button id="btn-raw" class="btn" onclick="setGraphMode('raw')">Raw Unfiltered (+23 Inverted)</button>
+          <button class="btn" onclick="resetCamera('graph')">Reset View</button>
+          <button id="btn-clear-sim" class="btn" style="display:none;border-color:var(--amber);color:var(--amber);" onclick="clearSimulation()">Clear Ablation</button>
+        </div>
+        <div class="tool-group" id="quick-picks">
+          <span style="font-size:11px;color:var(--muted);font-weight:600;">Top Chokepoints:</span>
+        </div>
+      </div>
+
+      <canvas id="canvas-graph"></canvas>
+
+      <div class="legend">
+        <span><i class="dot" style="background:var(--cyan)"></i>Chokepoint / Paper</span>
+        <span><i class="dot" style="background:var(--crimson)"></i>Inverted Citation</span>
+        <span><i class="dot" style="background:var(--amber)"></i>Severed Downstream</span>
+        <span><i class="dot" style="background:var(--violet)"></i>Disconnected Upstream</span>
+        <span style="color:#64748b;">Hover or click any node for label & details · Scroll to zoom · Drag to pan</span>
+      </div>
+    </div>
+
+    <aside id="panel-graph">
+      <div class="section-title">Relate Node Inspector</div>
+      <div class="card" id="graph-inspector">
+        <div class="paper-title">Select a paper on the timeline</div>
+        <div class="meta-line">Click any node or quick-pick chip to inspect its Relate properties and simulate node removal.</div>
+      </div>
+
+      <div class="section-title">Live Ablation Simulation</div>
+      <div class="card" id="sim-panel">
+        <div class="meta-line">Choose a paper and click <b>Simulate Node Removal</b> to compute lost reachability pairs and list severed downstream studies.</div>
+      </div>
+
+      <div class="section-title">4-Metric Rank Correlation (graph.rl)</div>
+      <div class="card" id="corr-panel" style="font-size:11.5px;color:var(--muted);">Loading metrics...</div>
+    </aside>
+  </section>
+
+  <!-- VIEW 2: RETRACTION RADAR -->
+  <section id="view-case" class="view">
+    <div class="stage">
+      <div class="toolbar">
+        <div class="tool-group" id="tier-filters">
+          <span style="font-size:11px;color:var(--muted);font-weight:600;">Temporal Tiers:</span>
+          <button class="chip active" data-tier="ALL" onclick="setTierFilter('ALL')">All (372)</button>
+          <button class="chip" data-tier="POST_12M_PLUS" onclick="setTierFilter('POST_12M_PLUS')">POST_12M+ (142)</button>
+          <button class="chip" data-tier="POST_6_12M" onclick="setTierFilter('POST_6_12M')">POST_6_12M (53)</button>
+          <button class="chip" data-tier="LAG_0_6M" onclick="setTierFilter('LAG_0_6M')">LAG_0_6M (69)</button>
+          <button class="chip" data-tier="PRE_NOTICE" onclick="setTierFilter('PRE_NOTICE')">PRE_NOTICE (77)</button>
+          <button class="chip" data-tier="AMBIGUOUS_DATE" onclick="setTierFilter('AMBIGUOUS_DATE')">AMBIGUOUS (31)</button>
+        </div>
+        <div class="tool-group">
+          <button class="btn" onclick="resetCamera('case')">Reset Radar</button>
+        </div>
+      </div>
+
+      <canvas id="canvas-case"></canvas>
+
+      <div class="legend">
+        <span><i class="dot" style="background:#ff2e63"></i>Retracted Root (W4224073284)</span>
+        <span><i class="dot" style="background:var(--crimson)"></i>POST_12M_PLUS (142)</span>
+        <span><i class="dot" style="background:var(--orange)"></i>POST_6_12M (53)</span>
+        <span><i class="dot" style="background:var(--amber)"></i>LAG_0_6M (69)</span>
+        <span><i class="dot" style="background:#60a5fa"></i>PRE_NOTICE (77)</span>
+        <span><i class="dot" style="background:#94a3b8"></i>AMBIGUOUS_DATE (31)</span>
+      </div>
+    </div>
+
+    <aside>
+      <div class="section-title">Retraction Case Overview (case.rl)</div>
+      <div class="card">
+        <div class="paper-title">U-Net-Based Medical Image Segmentation (2022)</div>
+        <span class="badge b-red">RETRACTED · 2023-10-18</span>
+        <div class="stat-grid">
+          <div class="stat"><label>Total Citing Papers</label><value class="cyan">372</value></div>
+          <div class="stat"><label>Post-12M+ Citations</label><value class="red">142</value></div>
+          <div class="stat"><label>0–6M Editorial Lag</label><value class="amber">69</value></div>
+          <div class="stat"><label>Inter-Citer Edges</label><value>31</value></div>
+        </div>
+      </div>
+
+      <div class="section-title">Selected Citing Study</div>
+      <div class="card" id="case-inspector">
+        <div class="meta-line">Click any orbital node on the radar to inspect its publication date, temporal tier, and global citation count.</div>
+      </div>
+    </aside>
+  </section>
+
+  <!-- VIEW 3: BATCH / BIBTEX AUDITOR -->
+  <section id="view-audit" class="view">
+    <div class="auditor-wrap">
+      <div class="card" style="display:flex;flex-direction:column;gap:11px;">
+        <div class="section-title">Batch / BibTeX Reference Auditor</div>
+        <p style="font-size:11.5px;color:var(--muted);line-height:1.5;">
+          Paste OpenAlex Work IDs, DOIs, or BibTeX entries to audit against <code>graph.rl</code> and <code>case.rl</code>.
+        </p>
+        <textarea id="audit-input" placeholder="@article{ling2023barley, doi = {10.1186/s13007-023-01096-w}}
+W4224073284
+W3017855299"></textarea>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn primary" style="flex:1;padding:8px;" onclick="runBatchAudit()">Audit References Live</button>
+          <button class="btn" onclick="loadSampleBib()">Load Demo BibTeX</button>
+        </div>
+        <label style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:7px;cursor:pointer;">
+          <input type="checkbox" id="chk-live" /> Enable <code>--add-live</code> (insert missing papers from OpenAlex into graph.rl)
+        </label>
+      </div>
+
+      <div>
+        <div class="section-title" style="margin-bottom:10px;">Live Contextual Audit Reports</div>
+        <div id="audit-results" class="audit-results">
+          <div class="card" style="color:var(--muted);font-size:12px;">
+            Click <b>Load Demo BibTeX</b> and then <b>Audit References Live</b> to inspect retracted roots, editorial-lag exposure, chokepoints, and citation chains.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VIEW 4: RAKIZA AI AGENT -->
+  <section id="view-agent" class="view">
+    <div class="auditor-wrap">
+      <div class="card" style="display:flex;flex-direction:column;gap:10px;">
+        <div class="section-title">Rakiza Relate-Grounded AI Agent</div>
+        <p style="font-size:11.5px;color:var(--muted);line-height:1.5;">
+          Answers strictly from <code>graph.rl</code> and <code>case.rl</code> via Relate queries. Works locally with zero API key, or optionally connects an external LLM with Relate facts injected.
+        </p>
+
+        <div style="display:flex;flex-wrap:wrap;gap:5px;">
+          <button class="chip" onclick="setAgentPrompt('What are the top chokepoints after temporal cleaning and simulate removing #1?')">Top Chokepoints & Ablation</button>
+          <button class="chip" onclick="setAgentPrompt('Summarize retraction temporal tiers and lag exposure for W4224073284')">Retraction Tiers (case.rl)</button>
+          <button class="chip" onclick="setAgentPrompt('Audit W4224073284 and W3017855299 and simulate removal')">Audit & Simulate IDs</button>
+        </div>
+
+        <textarea id="agent-prompt" style="min-height:110px;" placeholder="Ask about chokepoints, node ablation, retraction tiers, or paste any W... / DOI..."></textarea>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <select id="agent-provider">
+            <option value="gemini">Optional LLM: Gemini</option>
+            <option value="openai">Optional LLM: OpenAI-Compatible</option>
+          </select>
+          <input type="text" id="agent-model" placeholder="Model (optional, e.g. gemini-2.5-flash)" />
+        </div>
+        <input type="password" id="agent-key" placeholder="API Key (optional — leave blank for zero-key local Relate agent)" />
+
+        <button class="btn primary" style="padding:9px;" onclick="runAgentQuery()">Ask Relate Agent</button>
+      </div>
+
+      <div>
+        <div class="section-title" style="margin-bottom:10px;">Grounded Agent Response</div>
+        <div id="agent-output" class="audit-results">
+          <div class="card" style="color:var(--muted);font-size:12px;">
+            Ask a question on the left or click a quick prompt to query <code>Relate</code> and view grounded evidence.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="tooltip" class="tooltip"></div>
+
+<script>
+const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+}[m]));
+
+const state = {
+  tab: 'graph',
+  graphMode: 'clean',
+  graph: { nodes: [], edges: [], byId: {}, years: [], cam: { x: 0, y: 0, k: 1 }, selected: null, hovered: null, sim: null, metrics: null },
+  caseG: { nodes: [], edges: [], byId: {}, cam: { x: 0, y: 0, k: 1 }, selected: null, hovered: null, tier: 'ALL' },
+};
+
+const TIER_META = {
+  ROOT:           { r: 0,   color: '#ff2e63' },
+  PRE_NOTICE:     { r: 105, color: '#60a5fa' },
+  LAG_0_6M:       { r: 170, color: '#f59e0b' },
+  POST_6_12M:     { r: 230, color: '#f97316' },
+  POST_12M_PLUS:  { r: 295, color: '#f43f5e' },
+  AMBIGUOUS_DATE: { r: 350, color: '#94a3b8' },
+};
+
+function switchTab(name) {
+  state.tab = name;
+  const order = ['graph', 'case', 'audit', 'agent'];
+  document.querySelectorAll('.tab').forEach((el, i) => el.classList.toggle('active', order[i] === name));
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  if (name === 'graph') { resizeCanvas('canvas-graph'); drawGraph(); }
+  if (name === 'case')  { resizeCanvas('canvas-case');  drawCase(); }
+}
+
+function resizeCanvas(id) {
+  const c = document.getElementById(id);
+  const dpr = window.devicePixelRatio || 1;
+  const w = c.clientWidth || 800;
+  const h = c.clientHeight || 600;
+  c.width = w * dpr;
+  c.height = h * dpr;
+}
+
+function resetCamera(which) {
+  const c = document.getElementById(which === 'graph' ? 'canvas-graph' : 'canvas-case');
+  const w = c.clientWidth || 900, h = c.clientHeight || 620;
+  if (which === 'graph') {
+    state.graph.cam = { x: w * 0.5, y: h * 0.53, k: Math.min(w / 1080, h / 650) * 0.94 };
+    drawGraph();
+  } else {
+    state.caseG.cam = { x: w * 0.5, y: h * 0.52, k: Math.min(w, h) / 790 };
+    drawCase();
+  }
+}
+
+function layoutGraph() {
+  const g = state.graph;
+  const byYr = {};
+  g.nodes.forEach(n => {
+    const y = (n.year && n.year >= 2014) ? n.year : 2020;
+    (byYr[y] = byYr[y] || []).push(n);
+  });
+  const years = Object.keys(byYr).map(Number).sort((a, b) => a - b);
+  g.years = years;
+  const spanX = 960;
+  years.forEach((yr, idx) => {
+    const col = byYr[yr].sort((a, b) => (b.ablation_clean || 0) - (a.ablation_clean || 0));
+    const baseX = -spanX / 2 + (idx / Math.max(1, years.length - 1)) * spanX;
+    col.forEach((n, i) => {
+      const rank = Math.ceil(i / 2) * (i % 2 === 0 ? -1 : 1);
+      const stepY = 470 / Math.max(14, col.length);
+      n.x = baseX + ((i % 3) - 1) * 14;
+      n.y = rank * stepY;
+    });
+  });
+  updateGraphRadii();
+}
+
+function updateGraphRadii() {
+  const isClean = state.graphMode === 'clean';
+  state.graph.nodes.forEach(n => {
+    const val = isClean ? Number(n.ablation_clean || 0) : Number(n.ablation_raw || 0);
+    n.r = Math.max(3.6, Math.min(20, 3.6 + Math.sqrt(Math.max(0, val)) * 1.12));
+  });
+}
+
+function setGraphMode(mode) {
+  state.graphMode = mode;
+  document.getElementById('btn-clean').className = 'btn' + (mode === 'clean' ? ' active-cyan' : '');
+  document.getElementById('btn-raw').className = 'btn' + (mode === 'raw' ? ' active-red' : '');
+  updateGraphRadii();
+  drawGraph();
+  if (state.graph.selected) renderGraphInspector(state.graph.selected);
+}
+
+function drawPillLabel(ctx, text, x, y, k, accent = '#38bdf8') {
+  ctx.save();
+  ctx.font = '700 11px Inter, sans-serif';
+  const padX = 8, h = 20;
+  const w = ctx.measureText(text).width + padX * 2;
+  const px = x - w / 2;
+  const py = y - h - 10;
+  ctx.fillStyle = 'rgba(6, 10, 19, 0.94)';
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 1.2 / k;
+  ctx.beginPath();
+  ctx.roundRect(px, py, w, h, 6);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#f8fafc';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, py + h / 2 + 0.5);
+  ctx.restore();
+}
+
+function drawGraph() {
+  const c = document.getElementById('canvas-graph');
+  if (!c.width) resizeCanvas('canvas-graph');
+  const ctx = c.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const w = c.width / dpr, h = c.height / dpr;
+  const g = state.graph, cam = g.cam;
+  const isClean = state.graphMode === 'clean';
+  const sim = g.sim;
+  const downSet = sim ? new Set(sim.affected_downstream_ids) : null;
+  const upSet = sim ? new Set(sim.disconnected_upstream_ids) : null;
+  const simId = sim ? sim.simulation_target.id : null;
+
+  ctx.save();
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, w, h);
+  ctx.translate(cam.x, cam.y);
+  ctx.scale(cam.k, cam.k);
+
+  const spanX = 960;
+  ctx.textAlign = 'center';
+  ctx.font = '600 11px Inter, sans-serif';
+  g.years.forEach((yr, idx) => {
+    const x = -spanX / 2 + (idx / Math.max(1, g.years.length - 1)) * spanX;
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.08)';
+    ctx.lineWidth = 1 / cam.k;
+    ctx.beginPath(); ctx.moveTo(x, -280); ctx.lineTo(x, 280); ctx.stroke();
+    ctx.fillStyle = 'rgba(148, 163, 184, 0.55)';
+    ctx.fillText(String(yr), x, -290);
+  });
+
+  const selId = g.selected ? g.selected.id : null;
+  const hovId = g.hovered ? g.hovered.id : null;
+
+  g.edges.forEach(e => {
+    if (isClean && !e.temporal_valid) return;
+    const a = g.byId[e.src], b = g.byId[e.dst];
+    if (!a || !b) return;
+    const touchesSel = selId && (e.src === selId || e.dst === selId);
+    const isInv = !e.temporal_valid;
+
+    ctx.beginPath();
+    const mx = (a.x + b.x) / 2;
+    const my = (a.y + b.y) / 2 - (isInv ? 55 : 14);
+    ctx.moveTo(a.x, a.y);
+    ctx.quadraticCurveTo(mx, my, b.x, b.y);
+
+    if (isInv) {
+      ctx.strokeStyle = 'rgba(244, 63, 94, 0.78)';
+      ctx.lineWidth = 1.6 / cam.k;
+      ctx.setLineDash([5 / cam.k, 3 / cam.k]);
+    } else if (touchesSel) {
+      ctx.strokeStyle = e.src === selId ? 'rgba(167, 139, 250, 0.85)' : 'rgba(56, 189, 248, 0.85)';
+      ctx.lineWidth = 1.8 / cam.k;
+      ctx.setLineDash([]);
+    } else {
+      ctx.strokeStyle = sim ? 'rgba(148, 163, 184, 0.04)' : 'rgba(148, 163, 184, 0.12)';
+      ctx.lineWidth = 0.7 / cam.k;
+      ctx.setLineDash([]);
+    }
+    ctx.stroke();
+  });
+  ctx.setLineDash([]);
+
+  g.nodes.forEach(n => {
+    const val = isClean ? Number(n.ablation_clean || 0) : Number(n.ablation_raw || 0);
+    let fill = '#334155', stroke = 'rgba(148,163,184,0.35)', alpha = 1;
+    if (n.retracted) { fill = '#f43f5e'; stroke = '#fda4af'; }
+    else if (val >= 120) { fill = '#38bdf8'; stroke = '#e0f2fe'; }
+    else if (val >= 50)  { fill = '#0284c7'; stroke = '#7dd3fc'; }
+    else if (val > 0)    { fill = '#1e3a5f'; stroke = '#38bdf8'; }
+
+    if (sim) {
+      if (n.id === simId) { fill = '#f43f5e'; stroke = '#fff'; }
+      else if (downSet.has(n.id)) { fill = '#f59e0b'; stroke = '#fef3c7'; }
+      else if (upSet.has(n.id)) { fill = '#a78bfa'; stroke = '#ede9fe'; }
+      else { alpha = 0.18; }
+    }
+
+    ctx.globalAlpha = alpha;
+    if (n.id === selId || n.id === simId || (val >= 120 && !sim)) {
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, n.r + 5, 0, Math.PI * 2);
+      ctx.fillStyle = n.id === simId ? 'rgba(244, 63, 94, 0.25)' : 'rgba(56, 189, 248, 0.18)';
+      ctx.fill();
+    }
+
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.lineWidth = (n.id === selId ? 2.4 : 1) / cam.k;
+    ctx.strokeStyle = n.id === selId ? '#ffffff' : stroke;
+    ctx.stroke();
+
+    if (n.id === simId) {
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2.2 / cam.k;
+      ctx.beginPath();
+      ctx.moveTo(n.x - n.r * 0.65, n.y - n.r * 0.65); ctx.lineTo(n.x + n.r * 0.65, n.y + n.r * 0.65);
+      ctx.moveTo(n.x + n.r * 0.65, n.y - n.r * 0.65); ctx.lineTo(n.x - n.r * 0.65, n.y + n.r * 0.65);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  });
+
+  // Render clean non-overlapping pill label ONLY for focused/hovered/ablated node
+  const focusId = hovId || simId || selId;
+  const focusNode = focusId ? g.byId[focusId] : null;
+  if (focusNode) {
+    const val = isClean ? Number(focusNode.ablation_clean || 0) : Number(focusNode.ablation_raw || 0);
+    const shortT = focusNode.title.length > 38 ? focusNode.title.slice(0, 38) + '…' : focusNode.title;
+    const shownVal = focusNode.id === simId && isClean ? Number(focusNode.ablation_clean || 0) : val;
+    const tag = focusNode.id === simId ? `[ABLATED] ${shortT} (${shownVal})` : `${shortT} (${shownVal})`;
+    drawPillLabel(ctx, tag, focusNode.x, focusNode.y - focusNode.r, cam.k, focusNode.id === simId ? '#f43f5e' : '#38bdf8');
+  }
+
+  ctx.restore();
+}
+
+function renderGraphInspector(n) {
+  const el = document.getElementById('graph-inspector');
+  const diff = Number(n.ablation_clean || 0) - Number(n.ablation_raw || 0);
+  const diffTxt = diff === 0 ? 'Unchanged' : (diff > 0 ? `+${diff} clean` : `${diff} clean`);
+  el.innerHTML = `
+    <div class="paper-title">${esc(n.title)}</div>
+    <div class="meta-line">
+      <span>ID: <b>${esc(n.id)}</b></span>
+      <span>Year: <b>${n.year || 'N/A'}</b></span>
+      <span>Cites: <b>${Number(n.cites || 0).toLocaleString()}</b></span>
+    </div>
+    <div class="stat-grid">
+      <div class="stat"><label>Clean Ablation</label><value class="cyan">${n.ablation_clean ?? 0}</value></div>
+      <div class="stat"><label>Raw Ablation (${diffTxt})</label><value>${n.ablation_raw ?? 0}</value></div>
+      <div class="stat"><label>Bridge Betweenness</label><value>${Number(n.bridge || 0).toFixed(4)}</value></div>
+      <div class="stat"><label>PageRank</label><value>${Number(n.pagerank || 0).toFixed(4)}</value></div>
+    </div>
+    <div style="margin-top:11px;">
+      <button class="btn danger" onclick="runSimulation('${esc(n.id)}')">Simulate Node Removal (Live Relate)</button>
+    </div>
+  `;
+}
+
+async function runSimulation(wid) {
+  const sp = document.getElementById('sim-panel');
+  const nodeObj = state.graph.byId[wid];
+  if (nodeObj) {
+    state.graph.selected = nodeObj;
+    renderGraphInspector(nodeObj);
+  }
+  sp.innerHTML = `<div class="meta-line" style="color:var(--cyan);">Running live node-ablation BFS on graph.rl...</div>`;
+  try {
+    const res = await fetch('/api/simulate?id=' + encodeURIComponent(wid));
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    state.graph.sim = data;
+    document.getElementById('btn-clear-sim').style.display = 'inline-block';
+    const im = data.impact_metrics;
+    const downs = (data.top_affected_downstream_papers || []).map(p =>
+      `<div class="list-item" onclick="focusGraphNode('${esc(p.id)}')">
+        <div>${esc(p.title)}</div>
+        <div class="sub"><span>${esc(p.id)} · ${p.year}</span><span style="color:var(--amber);">-${p.lost_upstream_reach_targets} targets</span></div>
+      </div>`
+    ).join('');
+    sp.innerHTML = `
+      <span class="badge b-red">ABLATED: ${esc(data.simulation_target.id)}</span>
+      <div class="stat-grid">
+        <div class="stat"><label>Lost Reachability Pairs</label><value class="red">${im.lost_reachability_pairs_unbounded}</value></div>
+        <div class="stat"><label>Affected Downstream</label><value class="amber">${im.affected_downstream_papers_count}</value></div>
+        <div class="stat"><label>Isolated Upstream</label><value style="color:var(--violet);">${im.isolated_upstream_references_count}</value></div>
+        <div class="stat"><label>WCC Before → After</label><value>${im.weakly_connected_components_before} → ${im.weakly_connected_components_after}</value></div>
+      </div>
+      <div style="margin-top:10px;font-size:10.5px;color:var(--muted);font-weight:700;">TOP SEVERED DOWNSTREAM STUDIES:</div>
+      ${downs || '<div class="meta-line" style="margin-top:6px;">No indirect paths severed.</div>'}
+    `;
+    drawGraph();
+  } catch (e) {
+    sp.innerHTML = `<div style="color:var(--crimson);font-size:12px;">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+function clearSimulation() {
+  state.graph.sim = null;
+  document.getElementById('btn-clear-sim').style.display = 'none';
+  document.getElementById('sim-panel').innerHTML = `<div class="meta-line">Simulation cleared. Select any paper to test node removal.</div>`;
+  drawGraph();
+}
+
+function focusGraphNode(id) {
+  const n = state.graph.byId[id];
+  if (!n) return;
+  state.graph.selected = n;
+  renderGraphInspector(n);
+  drawGraph();
+}
+
+/* ====== CASE RADAR ====== */
+function layoutCase() {
+  const cg = state.caseG;
+  const groups = { PRE_NOTICE: [], LAG_0_6M: [], POST_6_12M: [], POST_12M_PLUS: [], AMBIGUOUS_DATE: [] };
+  cg.nodes.forEach(n => {
+    if (n.id === 'W4224073284') {
+      n.x = 0; n.y = 0; n.r = 16; n.tierKey = 'ROOT';
+    } else {
+      const t = groups[n.tier] ? n.tier : 'AMBIGUOUS_DATE';
+      n.tierKey = t;
+      groups[t].push(n);
+    }
+  });
+  Object.entries(groups).forEach(([tier, arr]) => {
+    arr.sort((a, b) => (b.cites || 0) - (a.cites || 0));
+    const baseR = TIER_META[tier].r;
+    arr.forEach((n, i) => {
+      const ang = (i / Math.max(1, arr.length)) * Math.PI * 2 - Math.PI / 2;
+      const jitter = ((i % 3) - 1) * 9;
+      n.x = Math.cos(ang) * (baseR + jitter);
+      n.y = Math.sin(ang) * (baseR + jitter);
+      n.r = Math.max(3.3, Math.min(11, 3.2 + Math.log10(Number(n.cites || 0) + 1) * 2.4));
+    });
+  });
+}
+
+function setTierFilter(tier) {
+  state.caseG.tier = tier;
+  document.querySelectorAll('#tier-filters .chip').forEach(el => el.classList.toggle('active', el.dataset.tier === tier));
+  drawCase();
+}
+
+function drawCase() {
+  const c = document.getElementById('canvas-case');
+  if (!c.width) resizeCanvas('canvas-case');
+  const ctx = c.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const w = c.width / dpr, h = c.height / dpr;
+  const cg = state.caseG, cam = cg.cam;
+
+  ctx.save();
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, w, h);
+  ctx.translate(cam.x, cam.y);
+  ctx.scale(cam.k, cam.k);
+
+  ['PRE_NOTICE','LAG_0_6M','POST_6_12M','POST_12M_PLUS','AMBIGUOUS_DATE'].forEach(tk => {
+    const m = TIER_META[tk];
+    ctx.beginPath();
+    ctx.arc(0, 0, m.r, 0, Math.PI * 2);
+    ctx.strokeStyle = (cg.tier === 'ALL' || cg.tier === tk) ? 'rgba(148,163,184,0.16)' : 'rgba(148,163,184,0.05)';
+    ctx.lineWidth = 1 / cam.k;
+    ctx.setLineDash(tk === 'AMBIGUOUS_DATE' ? [4 / cam.k, 4 / cam.k] : []);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = m.color;
+    ctx.globalAlpha = (cg.tier === 'ALL' || cg.tier === tk) ? 0.75 : 0.2;
+    ctx.font = '600 10px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(tk, 0, -m.r - 5);
+    ctx.globalAlpha = 1;
+  });
+
+  const selId = cg.selected ? cg.selected.id : null;
+  cg.edges.forEach(e => {
+    const a = cg.byId[e.src], b = cg.byId[e.dst];
+    if (!a || !b) return;
+    const isRootEdge = (e.dst === 'W4224073284');
+    const touchesSel = selId && (e.src === selId || e.dst === selId);
+    if (isRootEdge && !touchesSel) return;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.strokeStyle = touchesSel ? 'rgba(56, 189, 248, 0.85)' : 'rgba(56, 189, 248, 0.22)';
+    ctx.lineWidth = (touchesSel ? 1.8 : 0.85) / cam.k;
+    ctx.stroke();
+  });
+
+  cg.nodes.forEach(n => {
+    const m = TIER_META[n.tierKey] || TIER_META.AMBIGUOUS_DATE;
+    const active = (n.tierKey === 'ROOT' || cg.tier === 'ALL' || cg.tier === n.tierKey);
+    ctx.globalAlpha = active ? 0.95 : 0.1;
+
+    if (n.tierKey === 'ROOT' || n.id === selId) {
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, n.r + 7, 0, Math.PI * 2);
+      ctx.fillStyle = n.tierKey === 'ROOT' ? 'rgba(255, 46, 99, 0.26)' : 'rgba(56, 189, 248, 0.28)';
+      ctx.fill();
+    }
+
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+    ctx.fillStyle = m.color;
+    ctx.fill();
+    if (n.id === selId || n.tierKey === 'ROOT') {
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2 / cam.k;
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  });
+
+  const focusNode = cg.hovered || cg.selected;
+  if (focusNode) {
+    const shortT = focusNode.title.length > 36 ? focusNode.title.slice(0, 36) + '…' : focusNode.title;
+    drawPillLabel(ctx, `${shortT} (${focusNode.tierKey})`, focusNode.x, focusNode.y - focusNode.r, cam.k, '#f59e0b');
+  }
+
+  ctx.restore();
+}
+
+function renderCaseInspector(n) {
+  const el = document.getElementById('case-inspector');
+  const badgeCls = n.tierKey === 'POST_12M_PLUS' || n.tierKey === 'ROOT' ? 'b-red' : (n.tierKey === 'LAG_0_6M' || n.tierKey === 'POST_6_12M' ? 'b-amber' : 'b-gray');
+  el.innerHTML = `
+    <span class="badge ${badgeCls}">${esc(n.tierKey)}</span>
+    <div class="paper-title" style="margin-top:8px;">${esc(n.title)}</div>
+    <div class="meta-line">
+      <span>ID: <b>${esc(n.id)}</b></span>
+      <span>Pub Date: <b>${esc(n.date || n.year || 'N/A')}</b></span>
+      <span>Global Cites: <b>${Number(n.cites || 0).toLocaleString()}</b></span>
+    </div>
+    <div style="margin-top:11px;">
+      <button class="btn primary" style="width:100%;" onclick="auditSingleFromRadar('${esc(n.id)}')">Audit in Relate AI Agent</button>
+    </div>
+  `;
+}
+
+function auditSingleFromRadar(id) {
+  switchTab('agent');
+  document.getElementById('agent-prompt').value = `Audit ${id} and explain its retraction tier and graph context.`;
+  runAgentQuery();
+}
+
+/* ====== BATCH AUDITOR ====== */
+function loadSampleBib() {
+  const topNode = [...state.graph.nodes].sort((a, b) => (b.ablation_clean || 0) - (a.ablation_clean || 0))[0];
+  const topId = topNode ? topNode.id : 'W3014974815';
+  document.getElementById('audit-input').value =
+`@article{ling2023barley,
+  title = {Plant Methods 2023 (Editorial Lag Window)},
+  doi   = {10.1186/s13007-023-01096-w}
+}
+@article{retracted_unet_2022,
+  note = {OpenAlex: W4224073284}
+}
+@article{top_chokepoint,
+  note = {OpenAlex: ${topId}}
+}
+@article{covid_chokepoint,
+  note = {OpenAlex: W3017855299}
+}`;
+}
+
+async function runBatchAudit() {
+  const box = document.getElementById('audit-results');
+  const text = document.getElementById('audit-input').value;
+  const add_live = document.getElementById('chk-live').checked;
+  box.innerHTML = `<div class="card" style="color:var(--cyan);">Querying Relate databases (graph.rl & case.rl)...</div>`;
+  try {
+    const res = await fetch('/api/audit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, add_live })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    box.innerHTML = data.results.map(item => {
+      if (!item.ok) {
+        return `<div class="card"><span class="badge b-red">LOOKUP ERROR</span> <b style="margin-left:6px;">${esc(item.input)}</b><div class="meta-line" style="margin-top:6px;color:#fda4af;">${esc(item.error)}</div></div>`;
+      }
+      const r = item.report, mg = r.main_corpus_graph_rl, cg = r.retraction_case_case_rl;
+      const bCls = r.status === 'RETRACTED_WORK' ? 'b-red'
+                 : r.status === 'RETRACTION_EXPOSURE_FOOTPRINT' ? 'b-amber'
+                 : r.status === 'HIGH_STRUCTURAL_CHOKEPOINT_OR_REACH' ? 'b-cyan' : 'b-green';
+      const chains = (r.sample_citation_chains || []).map(ch => `<div class="chain-box">${esc(ch)}</div>`).join('');
+      const simBtn = mg.present ? `<button class="btn" style="padding:4px 10px;font-size:11px;border-color:var(--crimson);color:#fda4af;" onclick="jumpToSim('${esc(r.work_id)}')">Simulate Ablation →</button>` : '';
+      return `
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:7px;">
+            <div><span class="badge ${bCls}">${esc(r.status)}</span> <span style="font-size:11px;color:var(--muted);margin-left:6px;">${esc(r.work_id)} · Input: ${esc(item.input)}</span></div>
+            ${simBtn}
+          </div>
+          <div class="paper-title">${esc(mg.title || 'Untitled')} (${mg.year || 'N/A'})</div>
+          <div class="stat-grid" style="grid-template-columns:repeat(4,1fr);">
+            <div class="stat"><label>Clean Ablation</label><value class="cyan">${mg.ablation_lost_reachability_pairs ?? '—'}</value></div>
+            <div class="stat"><label>3-Hop Reach</label><value>${mg.structural_reach_3hop}</value></div>
+            <div class="stat"><label>Case Tier</label><value style="font-size:11.5px;">${esc(cg.temporal_tier || (r.retracted_flag ? 'ROOT' : '—'))}</value></div>
+            <div class="stat"><label>Post-12M+ Citers</label><value class="${cg.post_12m_plus_citers > 0 ? 'red' : ''}">${cg.post_12m_plus_citers}</value></div>
+          </div>
+          ${chains}
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    box.innerHTML = `<div class="card" style="color:var(--crimson);">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+/* ====== RELATE AI AGENT ====== */
+function setAgentPrompt(txt) {
+  document.getElementById('agent-prompt').value = txt;
+}
+
+async function runAgentQuery() {
+  const out = document.getElementById('agent-output');
+  const prompt = document.getElementById('agent-prompt').value;
+  const provider = document.getElementById('agent-provider').value;
+  const model = document.getElementById('agent-model').value;
+  const api_key = document.getElementById('agent-key').value;
+  out.innerHTML = `<div class="card" style="color:var(--cyan);">Querying Relate graph & case databases for grounded evidence...</div>`;
+  try {
+    const res = await fetch('/api/agent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, provider, model, api_key })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    let simHtml = '';
+    if (data.simulation && data.simulation.simulation_target) {
+      const tid = data.simulation.simulation_target.id;
+      simHtml = `<div style="margin-top:10px;"><button class="btn danger" onclick="jumpToSim('${esc(tid)}')">Inspect Ablation of ${esc(tid)} on Timeline →</button></div>`;
+    }
+    const noteHtml = data.note ? `<div class="meta-line" style="margin-top:8px;color:var(--amber);">${esc(data.note)}</div>` : '';
+
+    out.innerHTML = `
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;flex-wrap:wrap;">
+          <span class="badge b-cyan">GROUNDED ON RELATE</span>
+          <span style="font-size:11px;color:var(--muted);">Mode: <b>${esc(data.mode)}</b></span>
+        </div>
+        <div class="agent-msg">${esc(data.answer)}</div>
+        ${simHtml}
+        ${noteHtml}
+      </div>
+    `;
+  } catch (e) {
+    out.innerHTML = `<div class="card" style="color:var(--crimson);">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+function jumpToSim(wid) {
+  switchTab('graph');
+  focusGraphNode(wid);
+  runSimulation(wid);
+}
+
+/* ====== CANVAS INTERACTIONS ====== */
+function attachCanvasEvents(canvasId, which) {
+  const c = document.getElementById(canvasId);
+  const tip = document.getElementById('tooltip');
+  let dragging = false, lx = 0, ly = 0, dist = 0;
+
+  const getStore = () => which === 'graph' ? state.graph : state.caseG;
+  const redraw = () => which === 'graph' ? drawGraph() : drawCase();
+
+  function hitNode(mx, my) {
+    const s = getStore(), cam = s.cam;
+    const wx = (mx - cam.x) / cam.k, wy = (my - cam.y) / cam.k;
+    let best = null, bestD = Infinity;
+    for (const n of s.nodes) {
+      if (which === 'case' && s.tier !== 'ALL' && n.tierKey !== 'ROOT' && n.tierKey !== s.tier) continue;
+      const d = Math.hypot(n.x - wx, n.y - wy);
+      const rad = Math.max(n.r + 4, 8 / cam.k);
+      if (d <= rad && d < bestD) { best = n; bestD = d; }
+    }
+    return best;
+  }
+
+  c.addEventListener('mousedown', e => { dragging = true; lx = e.clientX; ly = e.clientY; dist = 0; });
+  window.addEventListener('mouseup', () => { dragging = false; });
+  c.addEventListener('mousemove', e => {
+    const rect = c.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const s = getStore();
+    if (dragging) {
+      const dx = e.clientX - lx, dy = e.clientY - ly;
+      lx = e.clientX; ly = e.clientY; dist += Math.hypot(dx, dy);
+      s.cam.x += dx; s.cam.y += dy;
+      tip.style.display = 'none';
+      redraw();
+      return;
+    }
+    const n = hitNode(mx, my);
+    const prev = s.hovered ? s.hovered.id : null;
+    s.hovered = n;
+    if ((n ? n.id : null) !== prev) redraw();
+
+    if (n) {
+      c.style.cursor = 'pointer';
+      tip.style.display = 'block';
+      tip.style.left = Math.min(window.innerWidth - 335, e.clientX + 14) + 'px';
+      tip.style.top = Math.min(window.innerHeight - 110, e.clientY + 14) + 'px';
+      if (which === 'graph') {
+        tip.innerHTML = `<b>${esc(n.title)}</b><span>${esc(n.id)} · ${n.year} · Clean Ablation: <b style="display:inline;color:var(--cyan);">${n.ablation_clean}</b> (Raw: ${n.ablation_raw})</span>`;
+      } else {
+        tip.innerHTML = `<b>${esc(n.title)}</b><span>${esc(n.id)} · ${esc(n.tierKey)} · Date: ${esc(n.date || n.year)} · Cites: ${n.cites}</span>`;
+      }
+    } else {
+      c.style.cursor = 'grab';
+      tip.style.display = 'none';
+    }
+  });
+  c.addEventListener('mouseleave', () => {
+    getStore().hovered = null;
+    tip.style.display = 'none';
+    redraw();
+  });
+  c.addEventListener('click', e => {
+    if (dist > 5) return;
+    const rect = c.getBoundingClientRect();
+    const n = hitNode(e.clientX - rect.left, e.clientY - rect.top);
+    if (!n) return;
+    const s = getStore();
+    s.selected = n;
+    if (which === 'graph') renderGraphInspector(n);
+    else renderCaseInspector(n);
+    redraw();
+  });
+  c.addEventListener('wheel', e => {
+    e.preventDefault();
+    const rect = c.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const cam = getStore().cam;
+    const factor = e.deltaY < 0 ? 1.14 : 0.88;
+    const nk = Math.max(0.35, Math.min(5, cam.k * factor));
+    cam.x = mx - (mx - cam.x) * (nk / cam.k);
+    cam.y = my - (my - cam.y) * (nk / cam.k);
+    cam.k = nk;
+    redraw();
+  }, { passive: false });
+}
+
+async function boot() {
+  attachCanvasEvents('canvas-graph', 'graph');
+  attachCanvasEvents('canvas-case', 'case');
+  window.addEventListener('resize', () => {
+    if (state.tab === 'graph') { resizeCanvas('canvas-graph'); drawGraph(); }
+    if (state.tab === 'case')  { resizeCanvas('canvas-case');  drawCase(); }
+  });
+
+  const [gRes, cRes] = await Promise.all([fetch('/api/graph'), fetch('/api/case')]);
+  const gData = await gRes.json();
+  const cData = await cRes.json();
+
+  state.graph.nodes = gData.nodes || [];
+  state.graph.edges = gData.edges || [];
+  state.graph.byId = Object.fromEntries(state.graph.nodes.map(n => [n.id, n]));
+  state.graph.metrics = gData.metrics_comparison;
+
+  state.caseG.nodes = cData.nodes || [];
+  state.caseG.edges = cData.edges || [];
+  state.caseG.byId = Object.fromEntries(state.caseG.nodes.map(n => [n.id, n]));
+
+  const invCount = state.graph.edges.filter(e => !e.temporal_valid).length;
+  document.getElementById('kpi-g').textContent = state.graph.nodes.length;
+  document.getElementById('kpi-inv').textContent = invCount;
+  document.getElementById('kpi-c').textContent = state.caseG.nodes.length;
+
+  const top4 = [...state.graph.nodes].sort((a, b) => (b.ablation_clean || 0) - (a.ablation_clean || 0)).slice(0, 4);
+  const qp = document.getElementById('quick-picks');
+  top4.forEach(n => {
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.textContent = (n.title.split(':')[0].slice(0, 20)) + ` (${n.ablation_clean})`;
+    b.onclick = () => runSimulation(n.id);
+    qp.appendChild(b);
+  });
+
+  if (gData.metrics_comparison && gData.metrics_comparison.pairwise_metric_comparison) {
+    const pw = gData.metrics_comparison.pairwise_metric_comparison.ablation_clean;
+    document.getElementById('corr-panel').innerHTML = `
+      <div style="display:flex;justify-content:space-between;margin-bottom:5px;"><span>Ablation vs Betweenness</span><b style="color:var(--cyan);">ρ = ${pw.betweenness.spearman_tie_aware} (${pw.betweenness.top10_overlap}/10)</b></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:5px;"><span>Ablation vs PageRank</span><b style="color:var(--amber);">ρ = ${pw.pagerank_clean.spearman_tie_aware} (${pw.pagerank_clean.top10_overlap}/10)</b></div>
+      <div style="display:flex;justify-content:space-between;"><span>Ablation vs Direct Cites</span><b style="color:var(--amber);">ρ = ${pw.in_cites_clean.spearman_tie_aware} (${pw.in_cites_clean.top10_overlap}/10)</b></div>
+    `;
+  }
+
+  layoutGraph();
+  layoutCase();
+  resizeCanvas('canvas-graph');
+  resetCamera('graph');
+  if (top4[0]) focusGraphNode(top4[0].id);
+}
+
+boot();
+</script>
+</body>
+</html>
