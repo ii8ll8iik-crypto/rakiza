@@ -4,19 +4,19 @@ import audit as rakiza
 TOOLS = [
     {
         "name": "audit_citations",
-        "description": "Audit one or more OpenAlex Work IDs or DOIs against embedded Relate graphs (graph.rl and case.rl) for retraction footprints, structural reach, node-ablation chokepoints, and citation chains.",
+        "description": "Audit OpenAlex Work IDs or DOIs against embedded Relate graphs (graph.rl and case.rl) for retraction footprints, 3-hop structural reach, unbounded node-ablation lost reachability pairs, and citation chains.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "identifiers": {"type": "array", "items": {"type": "string"}, "description": "List of OpenAlex Work IDs (e.g. W4224073284) or DOIs"},
-                "add_live": {"type": "boolean", "default": False, "description": "Fetch missing papers from OpenAlex, link into graph.rl, and recompute dynamic deltas"}
+                "add_live": {"type": "boolean", "default": False, "description": "Fetch missing papers from OpenAlex, link into graph.rl, and recompute ablation deltas"}
             },
             "required": ["identifiers"]
         }
     },
     {
         "name": "simulate_node_removal",
-        "description": "Simulate removing a paper from graph.rl to measure severed reachability paths, connected component shifts, and affected downstream studies.",
+        "description": "Simulate removing a paper from graph.rl to measure unbounded lost reachability pairs, weakly connected component shifts, and affected downstream studies.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -47,8 +47,10 @@ for line in sys.stdin:
         send({"jsonrpc": "2.0", "id": mid, "result": {
             "protocolVersion": "2024-11-05",
             "capabilities": {"tools": {}},
-            "serverInfo": {"name": "rakiza-mcp", "version": "1.0.0"}
+            "serverInfo": {"name": "rakiza-mcp", "version": "1.1.0"}
         }})
+    elif method == "ping":
+        send({"jsonrpc": "2.0", "id": mid, "result": {}})
     elif method == "tools/list":
         send({"jsonrpc": "2.0", "id": mid, "result": {"tools": TOOLS}})
     elif method == "tools/call":

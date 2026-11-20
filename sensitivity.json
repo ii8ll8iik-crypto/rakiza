@@ -1,55 +1,44 @@
 {
   "full_sample_nodes": 306,
-  "sub_sample_top15_per_year_nodes": 192,
-  "top10_chokepoints_overlap_count": 8,
-  "shared_top_chokepoints": [
+  "year_counts": {
+    "2014": 12,
+    "2015": 19,
+    "2016": 25,
+    "2017": 25,
+    "2018": 25,
+    "2019": 25,
+    "2020": 25,
+    "2021": 25,
+    "2022": 25,
+    "2023": 25,
+    "2024": 25,
+    "2025": 25,
+    "2026": 25
+  },
+  "scenarios": [
     {
-      "id": "W3017855299",
-      "title": "Automated detection of COVID-19 cases using deep neural networks with X-ray images",
-      "full_loss": 344,
-      "sub15_loss": 146
+      "regime": "top_20_per_year",
+      "nodes": 251,
+      "top10_overlap": 8,
+      "spearman_rank_corr": 0.9342
     },
     {
-      "id": "W2777186991",
-      "title": "Deep Learning Applications in Medical Image Analysis",
-      "full_loss": 268,
-      "sub15_loss": 87
+      "regime": "top_15_per_year",
+      "nodes": 192,
+      "top10_overlap": 8,
+      "spearman_rank_corr": 0.8485
     },
     {
-      "id": "W3014974815",
-      "title": "nnU-Net: a self-configuring method for deep learning-based biomedical image segmentation",
-      "full_loss": 214,
-      "sub15_loss": 120
+      "regime": "top_10_per_year",
+      "nodes": 130,
+      "top10_overlap": 6,
+      "spearman_rank_corr": 0.747
     },
     {
-      "id": "W4393248026",
-      "title": "Generalist foundation models from a multimodal dataset for 3D computed tomography",
-      "full_loss": 167,
-      "sub15_loss": 101
-    },
-    {
-      "id": "W3171849353",
-      "title": "AI for radiographic COVID-19 detection selects shortcuts over signal",
-      "full_loss": 158,
-      "sub15_loss": 83
-    },
-    {
-      "id": "W3074741277",
-      "title": "A Review of Deep Learning in Medical Imaging: Imaging Traits, Technology Trends, Case Studies With Progress Highlights, and Future Promises",
-      "full_loss": 155,
-      "sub15_loss": 79
-    },
-    {
-      "id": "W3096947210",
-      "title": "U-Net and Its Variants for Medical Image Segmentation: A Review of Theory and Applications",
-      "full_loss": 154,
-      "sub15_loss": 78
-    },
-    {
-      "id": "W4413447271",
-      "title": "Towards generalist foundation model for radiology by leveraging web-scale 2D&3D medical data",
-      "full_loss": 100,
-      "sub15_loss": 66
+      "regime": "random_70pct_subsamples_5x",
+      "nodes": 214,
+      "mean_top10_overlap": 4.8,
+      "mean_spearman_rank_corr": 0.8656
     }
   ]
 }

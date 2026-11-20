@@ -9,18 +9,27 @@ def q(s):
 
 def cypher_json(db, stmt):
     if not os.path.exists(db):
-        return []
+        raise FileNotFoundError(f"Relate database not found: {db}")
     r = subprocess.run(["relate", "--database", db, "--mode", "json", stmt], capture_output=True, text=True)
-    if r.returncode != 0 or not r.stdout.strip():
-        return []
+    if r.returncode != 0:
+        raise RuntimeError(f"Relate query failed on {db}: {(r.stderr or r.stdout).strip()}")
+    raw = r.stdout.strip()
+    if not raw:
+        raise RuntimeError(f"Empty output from Relate on {db}")
     try:
-        parsed = json.loads(r.stdout.strip())
-        return parsed["data"] if isinstance(parsed, dict) and isinstance(parsed.get("data"), list) else []
-    except json.JSONDecodeError:
-        return []
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"Invalid JSON from Relate on {db}: {e}")
+    if not isinstance(parsed, dict) or not isinstance(parsed.get("data"), list):
+        raise RuntimeError(f"Unexpected Relate response schema on {db}")
+    return parsed["data"]
 
 def run_write(db, stmt):
-    subprocess.run(["relate", "--database", db, stmt], check=True, stdout=subprocess.DEVNULL)
+    if not os.path.exists(db):
+        raise FileNotFoundError(f"Relate database not found: {db}")
+    r = subprocess.run(["relate", "--database", db, stmt], capture_output=True, text=True)
+    if r.returncode != 0:
+        raise RuntimeError(f"Relate write failed on {db}: {(r.stderr or r.stdout).strip()}")
 
 def scalar(db, stmt, key):
     rows = cypher_json(db, stmt)
@@ -36,6 +45,8 @@ def fetch_openalex(path):
         return json.loads(resp.read().decode("utf-8"))
 
 def resolve_id(ident):
+    if not ident or not ident.strip():
+        raise ValueError("Empty identifier provided")
     m = re.search(r"\b(W\d+)\b", ident.strip(), re.I)
     if m:
         return m.group(1).upper(), None
@@ -45,7 +56,7 @@ def resolve_id(ident):
         d = fetch_openalex(f"works/{encoded}")
         return d["id"].rsplit("/", 1)[-1], d
     except Exception as e:
-        sys.exit(f"OpenAlex lookup failed for '{ident}': {e}")
+        raise ValueError(f"OpenAlex lookup failed for '{ident}': {e}")
 
 def load_live_graph():
     nodes_rows = cypher_json("graph.rl", "MATCH (p:Paper) RETURN p.id AS id, p.title AS title, p.year AS year, p.ablation_loss AS ablation")
@@ -106,7 +117,7 @@ def simulate_removal(ident):
     wid, _ = resolve_id(ident)
     meta, adj = load_live_graph()
     if wid not in meta:
-        return {"work_id": wid, "error": "Paper not present in graph.rl; use --add-live first."}
+        raise ValueError(f"Paper {wid} not present in graph.rl; use --add-live first.")
     nodes = list(meta.keys())
     base = {u: reach(adj, u) for u in nodes}
     severed_down, severed_up = Counter(), Counter()
@@ -121,14 +132,14 @@ def simulate_removal(ident):
     return {
         "simulation_target": {"id": wid, "title": meta[wid]["title"], "year": meta[wid]["year"]},
         "impact_metrics": {
-            "broken_indirect_reach_pairs": sum(severed_down.values()),
+            "lost_reachability_pairs_unbounded": sum(severed_down.values()),
             "affected_downstream_papers_count": len(severed_down),
             "isolated_upstream_references_count": len(severed_up),
             "weakly_connected_components_before": count_wcc(nodes, adj),
             "weakly_connected_components_after": count_wcc(nodes, adj, blocked=wid),
         },
         "top_affected_downstream_papers": [
-            {"id": u, "title": meta[u]["title"], "year": meta[u]["year"], "lost_upstream_paths": c}
+            {"id": u, "title": meta[u]["title"], "year": meta[u]["year"], "lost_upstream_reach_targets": c}
             for u, c in severed_down.most_common(5)
         ],
         "top_disconnected_upstream_references": [
@@ -141,7 +152,7 @@ def add_live_dynamic(wid, d):
     if d is None:
         d = fetch_openalex(f"works/{wid}")
     meta_before, adj_before = load_live_graph()
-    pairs_before, loss_before = compute_all_ablation(adj_before)
+    pairs_before, _ = compute_all_ablation(adj_before)
 
     stmt = (f"CREATE (:Paper {{id:'{wid}', title:'{q(d.get('title'))}', year:{int(d.get('publication_year') or 0)}, "
             f"cites:{int(d.get('cited_by_count') or 0)}, retracted:{str(bool(d.get('is_retracted'))).lower()}, bridge:0.0, ablation_loss:0}})")
@@ -173,12 +184,13 @@ def add_live_dynamic(wid, d):
 
     return {
         "added_node": wid,
-        "outgoing_refs_linked": linked_out,
-        "incoming_citers_linked": linked_in,
+        "outgoing_refs_linked_in_sample": linked_out,
+        "incoming_citers_linked_from_snapshot": linked_in,
         "reachability_pairs_before": pairs_before,
         "reachability_pairs_after": pairs_after,
-        "new_reach_paths_opened": pairs_after - pairs_before,
+        "net_reachability_pairs_delta": pairs_after - pairs_before,
         "new_node_ablation_loss": loss_after.get(wid, 0),
+        "scope_note": "Updates graph.rl edges and unbounded ablation_loss; bridge_centrality stays 0.0 and case.rl is unchanged.",
         "updated_chokepoints": sorted(shifted, key=lambda x: x["ablation_after"] - x["ablation_before"], reverse=True)[:5],
     }
 
@@ -227,7 +239,7 @@ def audit(ident, live=False):
             "present": in_main, "dynamic_graph_delta": delta,
             "title": info.get("title") or cinfo.get("title") or (meta.get("title") if isinstance(meta, dict) else ""),
             "year": info.get("year") or cinfo.get("year") or (meta.get("publication_year") if isinstance(meta, dict) else None),
-            "bridge_centrality": info.get("bridge"), "ablation_broken_pairs": ablation,
+            "bridge_centrality": info.get("bridge"), "ablation_lost_reachability_pairs": ablation,
             "direct_citations_in_sample": direct, "structural_reach_3hop": reach_3,
         },
         "retraction_case_case_rl": {
@@ -238,8 +250,9 @@ def audit(ident, live=False):
         },
         "sample_citation_chains": chains,
         "confidence_and_limits": {
-            "evidence_basis": "Scoped to graph.rl (medical-imaging corpus) and case.rl (n=372 citers of W4224073284).",
-            "epistemic_boundary": "Measures structural reach, node-ablation path loss, and citation paths, not full-text research dependence.",
+            "evidence_basis": "Scoped to graph.rl (n=306 medical-imaging papers) and case.rl (n=372 citers of W4224073284).",
+            "metric_definitions": "structural_reach_3hop is bounded to <=3 hops; ablation_lost_reachability_pairs evaluates unbounded directed reachability across graph.rl.",
+            "epistemic_boundary": "Measures topological reach and citation paths, not full-text research dependence or author misconduct.",
         },
     }
 
@@ -248,12 +261,12 @@ def fmt(o):
     lines = [
         f"Work ID: {o['work_id']} | Status: {o['status']}",
         f"Title  : {mg['title']} ({mg['year']})",
-        f"[graph.rl] present={mg['present']} | bridge={mg['bridge_centrality']} | ablation_loss={mg['ablation_broken_pairs']} | direct={mg['direct_citations_in_sample']} | reach_3hop={mg['structural_reach_3hop']}",
+        f"[graph.rl] present={mg['present']} | bridge={mg['bridge_centrality']} | ablation_lost_pairs={mg['ablation_lost_reachability_pairs']} | direct={mg['direct_citations_in_sample']} | reach_3hop={mg['structural_reach_3hop']}",
         f"[case.rl]  present={cg['present']} | tier={cg['temporal_tier']} | total_citers={cg['total_citers_in_case']} | post_12m+={cg['post_12m_plus_citers']} | lag_0_6m={cg['lag_0_6m_citers']}",
     ]
     if mg.get("dynamic_graph_delta"):
         d = mg["dynamic_graph_delta"]
-        lines.append(f"[Dynamic Delta] out_links={d['outgoing_refs_linked']} | in_links={d['incoming_citers_linked']} | new_reach_paths=+{d['new_reach_paths_opened']}")
+        lines.append(f"[Dynamic Delta] out_links={d['outgoing_refs_linked_in_sample']} | in_links={d['incoming_citers_linked_from_snapshot']} | net_reach_pairs_delta=+{d['net_reachability_pairs_delta']}")
     if o["sample_citation_chains"]:
         lines.append("Chains : " + " || ".join(o["sample_citation_chains"][:2]))
     return "\n".join(lines)
@@ -265,12 +278,14 @@ if __name__ == "__main__":
     ap.add_argument("--add-live", action="store_true", help="Dynamically insert missing papers and recompute graph deltas")
     ap.add_argument("--simulate", action="store_true", help="Simulate removing the paper and list affected downstream works")
     args = ap.parse_args()
-
-    if args.simulate:
-        sims = [simulate_removal(i) for i in args.identifiers]
-        out = sims[0] if len(sims) == 1 else {"simulations": sims}
-        print(json.dumps(out, indent=2, ensure_ascii=False))
-    else:
-        reps = [audit(i, args.add_live) for i in args.identifiers]
-        out = reps[0] if len(reps) == 1 else {"audited_count": len(reps), "results": reps}
-        print(json.dumps(out, indent=2, ensure_ascii=False) if args.json else "\n---\n".join(fmt(r) for r in reps))
+    try:
+        if args.simulate:
+            sims = [simulate_removal(i) for i in args.identifiers]
+            out = sims[0] if len(sims) == 1 else {"simulations": sims}
+            print(json.dumps(out, indent=2, ensure_ascii=False))
+        else:
+            reps = [audit(i, args.add_live) for i in args.identifiers]
+            out = reps[0] if len(reps) == 1 else {"audited_count": len(reps), "results": reps}
+            print(json.dumps(out, indent=2, ensure_ascii=False) if args.json else "\n---\n".join(fmt(r) for r in reps))
+    except (ValueError, FileNotFoundError, RuntimeError) as e:
+        sys.exit(f"Error: {e}")
