@@ -179,7 +179,8 @@ def add_live_dynamic(wid, d):
                 stmts.append(f"MATCH (a:Paper {{id:'{existing_id}'}}), (b:Paper {{id:'{wid}'}}) CREATE (a)-[:CITES {{temporal_valid:{tval}}}]->(b)")
                 linked_in += 1
 
-    run_write("graph.rl", " ".join(stmts))
+    for s in stmts:
+        run_write("graph.rl", s)
 
     meta_after, adj_after = load_live_graph()
     pairs_after, loss_after = compute_all_ablation(adj_after)
