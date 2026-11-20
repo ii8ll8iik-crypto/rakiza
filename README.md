@@ -1,39 +1,45 @@
 # Rakiza (ركيزة)
-**Embedded Relate graph context engine & MCP server for researchers and AI agents to audit 3-hop structural reach, simulate unbounded node-ablation impact, and trace retraction exposure footprints.**
+**Embedded Relate graph context engine & MCP server for researchers and AI agents to audit age-adjusted structural reach, simulate node-ablation impact, and trace retraction exposure footprints.**
 
 ![Rakiza Structural Bridge and Exposure Chart](chart.png)
 
 ## Use case
 Flat citation counts fail to capture structural risks inside scientific bibliographies:
-- **Hidden pillars (3-Hop Structural Reach):** Papers with low in-sample direct citations (`<= 6`) sit upstream of dozens of studies across 2–3 citation hops (`(a)-[:CITES*1..3]->(b)`).
-- **Interactive Impact Simulation (`--simulate`):** Beyond static betweenness centrality, Rakiza removes a paper from `graph.rl` to measure unbounded lost directed reachability pairs (`p.ablation_loss`), weakly connected component shifts, and affected downstream studies.
-- **Dynamic Graph Updates (`--add-live`) & MCP Agent Integration (`mcp_server.py`):** AI agents connect over standard `stdio` MCP (`JSON-RPC 2.0`) or CLI `--json` to audit references, trace citation chains, and insert missing papers live while recomputing reachability deltas.
+- **Relative hidden pillars (`ask.py`):** Rather than an arbitrary cutoff, Rakiza filters for papers at or below the in-sample median direct citation count (`direct <= 2`, sample mean `1.98`) that still achieve high 3-hop structural reach (`>= 15`), normalized by publication age (`reach_per_yr`).
+- **Temporal edge auditing & interactive impact simulation (`--simulate`):** OpenAlex metadata contains `23/605` (`3.8%`) year-inverted citations (`citing_year < cited_year`, typically early-access vs. final issue dates). Rakiza tags every edge with `r.temporal_valid` inside `graph.rl`, reports both raw and temporally cleaned ablation metrics, and lists the exact downstream studies severed when a chokepoint paper is removed.
+- **Agentic reference auditing (`--json` & `mcp_server.py`):** AI agents connect over standard `stdio` MCP (`JSON-RPC 2.0`) or CLI `--json` to audit references, inspect multi-hop citation chains, and insert missing papers live.
 
-**Relationships modeled:** Directed citations `(:Paper)-[:CITES]->(:Paper)` where `a -[:CITES]-> b` means paper `a` cites `b`.
+**Relationships modeled:** Directed citations `(:Paper)-[:CITES {temporal_valid}]->(:Paper)` where `a -[:CITES]-> b` means paper `a` cites `b`.
 
 ## How it uses Relate
 - **Mode:** `single file` (`./graph.rl` and `./case.rl`)
-- **Why this mode & division of responsibility:** Python/NetworkX computes specialized graph-theoretic metrics (`bridge` betweenness and unbounded `ablation_loss`), while `Relate` provides the zero-server, portable single-file graph store, node-property persistence, multi-hop Cypher traversal (`[:CITES*1..3]`), and CLI/MCP context interface (`--mode table` / `--mode json`).
+- **Division of responsibility:** Python/NetworkX computes specialized graph-theoretic metrics (`bridge` betweenness, `pagerank`, and unbounded `ablation_loss`), while `Relate` provides the zero-server, portable single-file graph store, node/edge property persistence (`temporal_valid`, `ablation_loss`, `temporal_tier`), multi-hop Cypher traversal (`[:CITES*1..3]`), and CLI/MCP context interface.
 - **What the graph models:**
-  - **Nodes:** `(:Paper)` storing `id`, `title`, `year`, `date`, `cites`, `retracted`, `bridge`, `ablation_loss` (in `graph.rl`), and `temporal_tier` (in `case.rl`).
-  - **Edges:** `(:Paper)-[:CITES]->(:Paper)` for in-corpus citations.
+  - **Nodes:** `(:Paper)` storing `id`, `title`, `year`, `date`, `cites`, `retracted`, `bridge`, `pagerank`, `ablation_loss` (temporally clean), `ablation_raw`, and `temporal_tier` (in `case.rl`).
+  - **Edges:** `(:Paper)-[:CITES {temporal_valid}]->(:Paper)`.
 
 ## Key Findings
-1. **3-Hop Structural Reach vs. Unbounded Node Ablation (`graph.rl` — 306 papers, 605 unique edges):** *MR-based synthetic CT generation* (2017) has `4` direct in-sample citations yet achieves a bounded 3-hop structural reach of `68` papers. Under unbounded node-removal ablation (`*1..`), *Automated detection of COVID-19 cases using deep neural networks with X-ray images* (2020) causes `344` lost reachability pairs (`bridge = 0.0038`, `4` direct). Notably, *Generalist foundation models from a multimodal dataset for 3D computed tomography* (2026, `bridge = 0.0018`) breaks more reachability pairs (`167`) than a 2021 review (`bridge = 0.0019`, `155` lost pairs) because the review has more redundant alternative paths.
-2. **Multi-Regime Sample Sensitivity (`sensitivity.py`):** Testing `Top-20/yr`, `Top-15/yr` (`n=192`, `8/10` Top-10 overlap), `Top-10/yr`, and 5 random 70% subsamples confirms strong rank stability across sample perturbations (`sensitivity.json`).
-3. **Retraction Exposure Footprint (`case.rl` — Root `W4224073284`):** Tracks `372` citing papers (`373` nodes, `403` edges, `31` between citers) of retracted review *"U-Net-Based Medical Image Segmentation"* (retracted Oct 18, 2023), segmented into five tiers stored on nodes: `POST_12M_PLUS` (`142`), `PRE_NOTICE` (`77`), `LAG_0_6M` (`69`), `POST_6_12M` (`53`), and `AMBIGUOUS_DATE` (`31`, `-01-01` placeholder or `year=0`). Manual full-text audit of *Ling et al., Plant Methods 2023* (`10.1186/s13007-023-01096-w`, received May 2023) confirmed background-only mention and editorial lag.
+1. **Temporal Graph Cleaning (Before vs. After in `graph.rl` — 306 papers, 605 total edges):** Flagging `23` year-inverted edges (`r.temporal_valid = false`, leaving `582` valid edges) removes artificial backward paths from 2025–2026 papers to earlier studies (`6/10` Top-10 overlap before vs. after cleaning; `metrics_comparison.json`). *Automated detection of COVID-19 cases using deep neural networks with X-ray images* (`W3017855299`, 2020) remains the #1 chokepoint (`175` clean lost reachability pairs vs. `344` raw), whereas a 2026 foundation-model paper drops from `167` raw to `56` clean (below the 2021 review at `78` clean).
+2. **4-Metric Structural Comparison (`metrics_comparison.json`):** Across `graph.rl`, clean `ablation_loss` correlates strongly with `betweenness` (`Spearman = 0.9312`, Top-10 overlap `6/10`), while diverging sharply from `pagerank` (`Spearman = 0.546`, overlap `2/10`) and direct `in_cites` (`Spearman = 0.5895`, overlap `2/10`). Structural metrics expose bottlenecks invisible to citation counts and PageRank, while `--simulate` identifies the exact affected papers.
+3. **Multi-Regime Sample Sensitivity (`sensitivity.json`, tie-aware Spearman):**
+   - `Top-20/yr` (`n=251`): Top-10 overlap `8/10`, Spearman `0.9318`
+   - `Top-15/yr` (`n=192`): Top-10 overlap `8/10`, Spearman `0.8703`
+   - `Top-10/yr` (`n=130`): Top-10 overlap `7/10`, Spearman `0.7995`
+   - `Random 70% subsamples (30 runs, n=214)`: mean Top-10 overlap `5.07/10` (moderate stability), mean Spearman `0.8258`
+4. **Retraction Exposure Footprint (`case.rl` — Root `W4224073284`):** Tracks `372` citing papers (`373` nodes, `403` edges, `31` between citers) of retracted review *"U-Net-Based Medical Image Segmentation"* (retracted Oct 18, 2023), segmented into five tiers stored on nodes: `POST_12M_PLUS` (`142`), `PRE_NOTICE` (`77`), `LAG_0_6M` (`69`), `POST_6_12M` (`53`), and `AMBIGUOUS_DATE` (`31`, `-01-01` placeholder or `year=0`). Manual full-text audit of *Ling et al., Plant Methods 2023* (`10.1186/s13007-023-01096-w`, received May 2023) confirmed background-only mention and editorial lag.
 
 ## Setup and run
-- **Prerequisites:** Relate CLI (`v1.0.2+`) and Python 3.10+ (zero external Python packages needed for `ask.py`, `audit.py`, `sensitivity.py`, `mcp_server.py`, and `test_rakiza.py`).
+- **Prerequisites:** Relate CLI (`v1.0.2+`, install per official Relate documentation) and Python 3.10+ (zero external Python packages required for `ask.py`, `audit.py`, `sensitivity.py`, `mcp_server.py`, and `test_rakiza.py`).
+- **Full rebuild pipeline order:** `fetch.py` -> `build_graph.py` -> `bridge.py` -> `upgrade_science.py` -> `case.py` -> `sensitivity.py` -> `make_chart.py`.
 
 ```bash
 git clone https://github.com/ii8ll8iik-crypto/rakiza.git
 cd rakiza
 
-# 1. Run automated unit & MCP resilience tests (works with or without Relate CLI)
+# 1. Run automated unit, Relate consistency & MCP resilience tests
 python3 -m unittest -v test_rakiza.py
 
-# 2. Run all 5 structural, ablation, and temporal tables
+# 2. Run all 5 temporally cleaned structural & retraction tables
 python3 ask.py
 
 # 3. Agent & researcher contextual audit with citation chains
@@ -50,12 +56,12 @@ python3 mcp_server.py
 ```
 
 ## Where the data lives
-- `./graph.rl` — Persistent single-file Relate store for the medical-imaging AI corpus (`306` papers, `605` citations).
+- `./graph.rl` — Persistent single-file Relate store for the medical-imaging AI corpus (`306` papers, `605` edges with `temporal_valid` flags).
 - `./case.rl` — Persistent single-file Relate store for retracted root `W4224073284` (`373` nodes, `403` citations).
-- `./works.json`, `./bridge.json`, `./ablation.json`, `./sensitivity.json`, `./case.json` — Raw and intermediate snapshots.
+- `./works.json`, `./bridge.json`, `./ablation.json`, `./metrics_comparison.json`, `./sensitivity.json`, `./case.json` — Raw and intermediate snapshots.
 
 ## Methodological Limitations
-1. **Subgraph boundary & year coverage:** `graph.rl` selects up to 25 top-cited works per year in OpenAlex (`n=306`; `2014` has `12` available papers and `2015` has `19`, while `2016–2026` have `25` each).
-2. **Bounded 3-Hop Reach vs. Unbounded Ablation:** `structural_reach_3hop` counts citing works within `<=3` hops (`[:CITES*1..3]`), whereas `ablation_lost_reachability_pairs` evaluates unbounded transitive reachability across `graph.rl`. Neither replaces full-text inspection for experimental research dependence.
-3. **Dynamic live update scope:** `--add-live` inserts the missing work into `graph.rl`, links in-sample references and snapshot citers (`works.json`), and updates `ablation_loss`, while leaving `bridge` at `0.0` and `case.rl` unmodified.
-4. **Indexed dates:** `case.rl` classifies works using OpenAlex `publication_date` (isolating `-01-01` placeholders into `AMBIGUOUS_DATE`), as manuscript submission dates are not uniformly exposed in bulk metadata.
+1. **Subgraph boundary & year coverage:** `graph.rl` selects up to 25 top-cited works per year in OpenAlex (`n=306`; `2014` has `12` available papers and `2015` has `19`, while `2016–2026` have `25` each). Sensitivity checks perturb this sample but do not replace an unseeded full-field crawl.
+2. **Same-year cycles & temporal flags:** Filtering `citing_year < cited_year` removes `23` cross-year inversions (`582` edges retained), though same-year citations can still form local cycles.
+3. **Bounded 3-Hop Reach vs. Unbounded Ablation:** `structural_reach_3hop` counts citing works within `<=3` hops, whereas `ablation_lost_reachability_pairs` evaluates unbounded transitive reachability across temporally valid edges. Neither replaces full-text inspection for experimental research dependence.
+4. **Dynamic live update scope:** `--add-live` inserts the missing work into `graph.rl` in a single write batch, links in-sample references and snapshot citers (`works.json`), and updates `ablation_loss`, while leaving `bridge`/`pagerank` at `0.0` (`not_computed`) and `case.rl` unmodified.

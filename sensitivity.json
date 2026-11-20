@@ -1,4 +1,5 @@
 {
+  "graph_basis": "Temporally consistent subgraph (582 valid edges; 23 year-inverted edges excluded)",
   "full_sample_nodes": 306,
   "year_counts": {
     "2014": 12,
@@ -20,25 +21,25 @@
       "regime": "top_20_per_year",
       "nodes": 251,
       "top10_overlap": 8,
-      "spearman_rank_corr": 0.9342
+      "spearman_tie_aware": 0.9318
     },
     {
       "regime": "top_15_per_year",
       "nodes": 192,
       "top10_overlap": 8,
-      "spearman_rank_corr": 0.8485
+      "spearman_tie_aware": 0.8703
     },
     {
       "regime": "top_10_per_year",
       "nodes": 130,
-      "top10_overlap": 6,
-      "spearman_rank_corr": 0.747
+      "top10_overlap": 7,
+      "spearman_tie_aware": 0.7995
     },
     {
-      "regime": "random_70pct_subsamples_5x",
+      "regime": "random_70pct_subsamples_30x",
       "nodes": 214,
-      "mean_top10_overlap": 4.8,
-      "mean_spearman_rank_corr": 0.8656
+      "mean_top10_overlap": 5.07,
+      "mean_spearman_tie_aware": 0.8258
     }
   ]
 }

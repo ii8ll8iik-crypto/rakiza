@@ -1,17 +1,21 @@
-import json, subprocess, unittest
+import json, shutil, subprocess, unittest
 from collections import Counter
 import audit
 
 class TestRakizaIntegrity(unittest.TestCase):
-    def test_ablation_math_reproduces_covid_chokepoint(self):
+    def test_ablation_math_reproduces_clean_and_raw_covid_chokepoint(self):
         with open("works.json", encoding="utf-8") as f:
             works = json.load(f)
-        adj = {u: [v for v in w.get("refs", []) if v in works and v != u] for u, w in works.items()}
-        _, loss = audit.compute_all_ablation(adj)
-        covid_ids = [k for k, w in works.items() if "Automated detection of COVID-19 cases" in w.get("title", "")]
+        adj_raw = {u: [v for v in w.get("refs", []) if v in works and v != u] for u, w in works.items()}
+        adj_clean = {
+            u: [v for v in adj_raw[u] if not (int(works[u].get("year") or 0) > 0 and int(works[v].get("year") or 0) > 0 and int(works[u]["year"]) < int(works[v]["year"]))]
+            for u in works
+        }
+        _, loss_raw = audit.compute_all_ablation(adj_raw)
+        _, loss_clean = audit.compute_all_ablation(adj_clean)
         self.assertEqual(len(works), 306)
-        self.assertEqual(len(covid_ids), 1)
-        self.assertEqual(loss[covid_ids[0]], 344)
+        self.assertEqual(loss_raw["W3017855299"], 344)
+        self.assertEqual(loss_clean["W3017855299"], 175)
 
     def test_temporal_tiers_reproduce_exact_counts(self):
         with open("case.json", encoding="utf-8") as f:
@@ -50,6 +54,14 @@ class TestRakizaIntegrity(unittest.TestCase):
         self.assertEqual(len(lines), 2)
         self.assertTrue(lines[0]["result"]["isError"])
         self.assertEqual(lines[1], {"jsonrpc": "2.0", "id": 2, "result": {}})
+
+    @unittest.skipUnless(shutil.which("relate"), "Relate CLI not installed in sandbox")
+    def test_relate_databases_match_json_snapshots(self):
+        g_nodes = audit.scalar("graph.rl", "MATCH (p:Paper) RETURN count(p) AS n", "n")
+        g_valid = audit.scalar("graph.rl", "MATCH ()-[r:CITES]->() WHERE r.temporal_valid = true RETURN count(r) AS n", "n")
+        g_inv = audit.scalar("graph.rl", "MATCH ()-[r:CITES]->() WHERE r.temporal_valid = false RETURN count(r) AS n", "n")
+        c_nodes = audit.scalar("case.rl", "MATCH (p:Paper) RETURN count(p) AS n", "n")
+        self.assertEqual((g_nodes, g_valid, g_inv, c_nodes), (306, 582, 23, 373))
 
 if __name__ == "__main__":
     unittest.main()

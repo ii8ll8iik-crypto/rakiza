@@ -40,7 +40,7 @@ def fetch_openalex(path):
     url = f"https://api.openalex.org/{path}{sep}select=id,title,publication_year,cited_by_count,referenced_works,is_retracted&mailto={urllib.parse.quote(MAILTO)}"
     if KEY:
         url += f"&api_key={urllib.parse.quote(KEY)}"
-    req = urllib.request.Request(url, headers={"User-Agent": f"Rakiza/1.0 (mailto:{MAILTO})"})
+    req = urllib.request.Request(url, headers={"User-Agent": f"Rakiza/1.1 (mailto:{MAILTO})"})
     with urllib.request.urlopen(req, timeout=20) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
@@ -60,7 +60,7 @@ def resolve_id(ident):
 
 def load_live_graph():
     nodes_rows = cypher_json("graph.rl", "MATCH (p:Paper) RETURN p.id AS id, p.title AS title, p.year AS year, p.ablation_loss AS ablation")
-    edges_rows = cypher_json("graph.rl", "MATCH (a:Paper)-[:CITES]->(b:Paper) WHERE a.id <> b.id RETURN a.id AS src, b.id AS dst")
+    edges_rows = cypher_json("graph.rl", "MATCH (a:Paper)-[r:CITES]->(b:Paper) WHERE a.id <> b.id AND coalesce(r.temporal_valid, true) = true RETURN a.id AS src, b.id AS dst")
     meta = {r["id"]: r for r in nodes_rows}
     adj = {u: set() for u in meta}
     for e in edges_rows:
@@ -153,24 +153,33 @@ def add_live_dynamic(wid, d):
         d = fetch_openalex(f"works/{wid}")
     meta_before, adj_before = load_live_graph()
     pairs_before, _ = compute_all_ablation(adj_before)
+    wy = int(d.get("publication_year") or 0)
 
-    stmt = (f"CREATE (:Paper {{id:'{wid}', title:'{q(d.get('title'))}', year:{int(d.get('publication_year') or 0)}, "
-            f"cites:{int(d.get('cited_by_count') or 0)}, retracted:{str(bool(d.get('is_retracted'))).lower()}, bridge:0.0, ablation_loss:0}})")
-    run_write("graph.rl", stmt)
-
+    stmts = [
+        f"CREATE (:Paper {{id:'{wid}', title:'{q(d.get('title'))}', year:{wy}, "
+        f"cites:{int(d.get('cited_by_count') or 0)}, retracted:{str(bool(d.get('is_retracted'))).lower()}, "
+        f"bridge:0.0, pagerank:0.0, ablation_loss:0, ablation_raw:0}})"
+    ]
     linked_out = 0
     for ref in [x.rsplit("/", 1)[-1] for x in (d.get("referenced_works") or [])]:
         if ref in meta_before and ref != wid:
-            run_write("graph.rl", f"MATCH (a:Paper {{id:'{wid}'}}), (b:Paper {{id:'{ref}'}}) CREATE (a)-[:CITES]->(b)")
+            ry = int(meta_before[ref].get("year") or 0)
+            tval = str(wy == 0 or ry == 0 or wy >= ry).lower()
+            stmts.append(f"MATCH (a:Paper {{id:'{wid}'}}), (b:Paper {{id:'{ref}'}}) CREATE (a)-[:CITES {{temporal_valid:{tval}}}]->(b)")
             linked_out += 1
 
     linked_in = 0
     if os.path.exists("works.json"):
-        wmap = json.load(open("works.json"))
+        with open("works.json", encoding="utf-8") as f:
+            wmap = json.load(f)
         for existing_id, winfo in wmap.items():
             if existing_id in meta_before and existing_id != wid and wid in (winfo.get("refs") or []):
-                run_write("graph.rl", f"MATCH (a:Paper {{id:'{existing_id}'}}), (b:Paper {{id:'{wid}'}}) CREATE (a)-[:CITES]->(b)")
+                ey = int(meta_before[existing_id].get("year") or 0)
+                tval = str(ey == 0 or wy == 0 or ey >= wy).lower()
+                stmts.append(f"MATCH (a:Paper {{id:'{existing_id}'}}), (b:Paper {{id:'{wid}'}}) CREATE (a)-[:CITES {{temporal_valid:{tval}}}]->(b)")
                 linked_in += 1
+
+    run_write("graph.rl", " ".join(stmts))
 
     meta_after, adj_after = load_live_graph()
     pairs_after, loss_after = compute_all_ablation(adj_after)
@@ -190,15 +199,21 @@ def add_live_dynamic(wid, d):
         "reachability_pairs_after": pairs_after,
         "net_reachability_pairs_delta": pairs_after - pairs_before,
         "new_node_ablation_loss": loss_after.get(wid, 0),
-        "scope_note": "Updates graph.rl edges and unbounded ablation_loss; bridge_centrality stays 0.0 and case.rl is unchanged.",
+        "scope_note": "Updates graph.rl edges and unbounded ablation_loss; bridge/pagerank remain 0.0 (not_computed) and case.rl is unchanged.",
         "updated_chokepoints": sorted(shifted, key=lambda x: x["ablation_after"] - x["ablation_before"], reverse=True)[:5],
     }
 
 def get_chains(db, wid, direction="upstream"):
+    tfilter = "AND coalesce(r1.temporal_valid, true) = true" if db == "graph.rl" else ""
+    tfilter2 = "AND coalesce(r2.temporal_valid, true) = true" if db == "graph.rl" else ""
     if direction == "upstream":
-        stmt = f"MATCH (p:Paper {{id:'{wid}'}})-[:CITES]->(m:Paper) OPTIONAL MATCH (m)-[:CITES]->(g:Paper) RETURN p.title AS s0, m.title AS s1, m.year AS y1, g.title AS s2, g.year AS y2 LIMIT 3"
+        stmt = (f"MATCH (p:Paper {{id:'{wid}'}})-[r1:CITES]->(m:Paper) WHERE p.id <> m.id {tfilter} "
+                f"OPTIONAL MATCH (m)-[r2:CITES]->(g:Paper) WHERE m.id <> g.id {tfilter2} "
+                f"RETURN p.title AS s0, m.title AS s1, m.year AS y1, g.title AS s2, g.year AS y2 LIMIT 3")
     else:
-        stmt = f"MATCH (c1:Paper)-[:CITES]->(p:Paper {{id:'{wid}'}}) OPTIONAL MATCH (c2:Paper)-[:CITES]->(c1) RETURN c2.title AS s2, c2.year AS y2, c1.title AS s1, c1.year AS y1, p.title AS s0 LIMIT 3"
+        stmt = (f"MATCH (c1:Paper)-[r1:CITES]->(p:Paper {{id:'{wid}'}}) WHERE c1.id <> p.id {tfilter} "
+                f"OPTIONAL MATCH (c2:Paper)-[r2:CITES]->(c1) WHERE c2.id <> c1.id {tfilter2} "
+                f"RETURN c2.title AS s2, c2.year AS y2, c1.title AS s1, c1.year AS y1, p.title AS s0 LIMIT 3")
     out = []
     for r in cypher_json(db, stmt):
         if r.get("s1"):
@@ -208,10 +223,10 @@ def get_chains(db, wid, direction="upstream"):
 
 def audit(ident, live=False):
     wid, meta = resolve_id(ident)
-    rows = cypher_json("graph.rl", f"MATCH (p:Paper {{id:'{wid}'}}) RETURN p.title AS title, p.year AS year, p.retracted AS retracted, p.bridge AS bridge, p.ablation_loss AS ablation")
+    rows = cypher_json("graph.rl", f"MATCH (p:Paper {{id:'{wid}'}}) RETURN p.title AS title, p.year AS year, p.retracted AS retracted, p.bridge AS bridge, p.pagerank AS pagerank, p.ablation_loss AS ablation, p.ablation_raw AS ablation_raw")
     delta = add_live_dynamic(wid, meta) if (not rows and live) else None
     if delta is not None:
-        rows = cypher_json("graph.rl", f"MATCH (p:Paper {{id:'{wid}'}}) RETURN p.title AS title, p.year AS year, p.retracted AS retracted, p.bridge AS bridge, p.ablation_loss AS ablation")
+        rows = cypher_json("graph.rl", f"MATCH (p:Paper {{id:'{wid}'}}) RETURN p.title AS title, p.year AS year, p.retracted AS retracted, p.bridge AS bridge, p.pagerank AS pagerank, p.ablation_loss AS ablation, p.ablation_raw AS ablation_raw")
     in_main = bool(rows)
     info = rows[0] if in_main else {}
 
@@ -221,12 +236,12 @@ def audit(ident, live=False):
 
     retracted = bool(info.get("retracted")) or bool(cinfo.get("retracted"))
     cites_root = scalar("case.rl", f"MATCH (a:Paper {{id:'{wid}'}})-[:CITES]->(:Paper {{id:'W4224073284'}}) RETURN count(a) AS n", "n") > 0
-    direct = scalar("graph.rl", f"MATCH (d:Paper)-[:CITES]->(p:Paper {{id:'{wid}'}}) WHERE d.id <> p.id RETURN count(DISTINCT d) AS n", "n")
-    reach_3 = scalar("graph.rl", f"MATCH (a:Paper)-[:CITES*1..3]->(p:Paper {{id:'{wid}'}}) WHERE a.id <> p.id RETURN count(DISTINCT a) AS n", "n")
+    direct = scalar("graph.rl", f"MATCH (d:Paper)-[r:CITES]->(p:Paper {{id:'{wid}'}}) WHERE d.id <> p.id AND coalesce(r.temporal_valid, true) = true RETURN count(DISTINCT d) AS n", "n")
+    reach_3 = scalar("graph.rl", f"MATCH (a:Paper)-[r:CITES*1..3]->(p:Paper {{id:'{wid}'}}) WHERE a.id <> p.id AND ALL(rel IN r WHERE coalesce(rel.temporal_valid, true) = true) RETURN count(DISTINCT a) AS n", "n")
     ablation = info.get("ablation")
 
     status = ("RETRACTED_WORK" if retracted else ("RETRACTION_EXPOSURE_FOOTPRINT" if cites_root else
-              ("HIGH_STRUCTURAL_CHOKEPOINT_OR_REACH" if ((ablation is not None and int(ablation) >= 150) or reach_3 >= 20) else
+              ("HIGH_STRUCTURAL_CHOKEPOINT_OR_REACH" if ((ablation is not None and int(ablation) >= 80) or reach_3 >= 15) else
                ("PRESENT_IN_MAIN_CORPUS" if in_main else "OUTSIDE_LOCAL_SUBGRAPHS"))))
 
     chains = get_chains("graph.rl", wid, "upstream") if in_main else (get_chains("case.rl", wid, "upstream") if in_case else [])
@@ -239,7 +254,8 @@ def audit(ident, live=False):
             "present": in_main, "dynamic_graph_delta": delta,
             "title": info.get("title") or cinfo.get("title") or (meta.get("title") if isinstance(meta, dict) else ""),
             "year": info.get("year") or cinfo.get("year") or (meta.get("publication_year") if isinstance(meta, dict) else None),
-            "bridge_centrality": info.get("bridge"), "ablation_lost_reachability_pairs": ablation,
+            "bridge_centrality": info.get("bridge"), "pagerank": info.get("pagerank"),
+            "ablation_lost_reachability_pairs": ablation, "ablation_raw_unfiltered": info.get("ablation_raw"),
             "direct_citations_in_sample": direct, "structural_reach_3hop": reach_3,
         },
         "retraction_case_case_rl": {
@@ -250,8 +266,8 @@ def audit(ident, live=False):
         },
         "sample_citation_chains": chains,
         "confidence_and_limits": {
-            "evidence_basis": "Scoped to graph.rl (n=306 medical-imaging papers) and case.rl (n=372 citers of W4224073284).",
-            "metric_definitions": "structural_reach_3hop is bounded to <=3 hops; ablation_lost_reachability_pairs evaluates unbounded directed reachability across graph.rl.",
+            "evidence_basis": "Scoped to temporally consistent graph.rl (n=306, 582 valid edges; 23 year-inverted edges excluded) and case.rl (n=372 citers of W4224073284).",
+            "metric_definitions": "structural_reach_3hop is bounded to <=3 hops; ablation_lost_reachability_pairs evaluates unbounded directed reachability across temporally valid edges.",
             "epistemic_boundary": "Measures topological reach and citation paths, not full-text research dependence or author misconduct.",
         },
     }
@@ -261,7 +277,7 @@ def fmt(o):
     lines = [
         f"Work ID: {o['work_id']} | Status: {o['status']}",
         f"Title  : {mg['title']} ({mg['year']})",
-        f"[graph.rl] present={mg['present']} | bridge={mg['bridge_centrality']} | ablation_lost_pairs={mg['ablation_lost_reachability_pairs']} | direct={mg['direct_citations_in_sample']} | reach_3hop={mg['structural_reach_3hop']}",
+        f"[graph.rl] present={mg['present']} | ablation_clean={mg['ablation_lost_reachability_pairs']} (raw={mg['ablation_raw_unfiltered']}) | bridge={mg['bridge_centrality']} | direct={mg['direct_citations_in_sample']} | reach_3hop={mg['structural_reach_3hop']}",
         f"[case.rl]  present={cg['present']} | tier={cg['temporal_tier']} | total_citers={cg['total_citers_in_case']} | post_12m+={cg['post_12m_plus_citers']} | lag_0_6m={cg['lag_0_6m_citers']}",
     ]
     if mg.get("dynamic_graph_delta"):

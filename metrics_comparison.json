@@ -1,0 +1,152 @@
+{
+  "total_edges": 605,
+  "temporally_valid_edges": 582,
+  "temporally_inverted_edges": 23,
+  "top10_overlap_raw_vs_clean": 6,
+  "before_after_top10": [
+    {
+      "id": "W3014974815",
+      "title": "nnU-Net: a self-configuring method for deep learning-based biomedical image segmentation",
+      "year": 2020,
+      "ablation_raw": 214,
+      "ablation_clean": 220
+    },
+    {
+      "id": "W3017855299",
+      "title": "Automated detection of COVID-19 cases using deep neural networks with X-ray images",
+      "year": 2020,
+      "ablation_raw": 344,
+      "ablation_clean": 175
+    },
+    {
+      "id": "W2777186991",
+      "title": "Deep Learning Applications in Medical Image Analysis",
+      "year": 2017,
+      "ablation_raw": 268,
+      "ablation_clean": 158
+    },
+    {
+      "id": "W4401481079",
+      "title": "CSWin-UNet: Transformer UNet with cross-shaped windows for medical image segmentation",
+      "year": 2024,
+      "ablation_raw": 99,
+      "ablation_clean": 99
+    },
+    {
+      "id": "W4414243662",
+      "title": "VM-UNet: Vision Mamba UNet for Medical Image Segmentation",
+      "year": 2025,
+      "ablation_raw": 94,
+      "ablation_clean": 94
+    },
+    {
+      "id": "W2964227007",
+      "title": "H-DenseUNet: Hybrid Densely Connected UNet for Liver and Tumor Segmentation From CT Volumes",
+      "year": 2018,
+      "ablation_raw": 90,
+      "ablation_clean": 92
+    },
+    {
+      "id": "W3096947210",
+      "title": "U-Net and Its Variants for Medical Image Segmentation: A Review of Theory and Applications",
+      "year": 2021,
+      "ablation_raw": 154,
+      "ablation_clean": 90
+    },
+    {
+      "id": "W3171849353",
+      "title": "AI for radiographic COVID-19 detection selects shortcuts over signal",
+      "year": 2021,
+      "ablation_raw": 158,
+      "ablation_clean": 89
+    },
+    {
+      "id": "W4293163051",
+      "title": "Transformers in medical image analysis",
+      "year": 2022,
+      "ablation_raw": 93,
+      "ablation_clean": 89
+    },
+    {
+      "id": "W3105081694",
+      "title": "COVID-Net: a tailored deep convolutional neural network design for detection of COVID-19 cases from chest X-ray images",
+      "year": 2020,
+      "ablation_raw": 88,
+      "ablation_clean": 81
+    }
+  ],
+  "pairwise_metric_comparison": {
+    "in_cites_clean": {
+      "in_cites_clean": {
+        "spearman_tie_aware": 1.0,
+        "top10_overlap": 10
+      },
+      "pagerank_clean": {
+        "spearman_tie_aware": 0.9583,
+        "top10_overlap": 5
+      },
+      "betweenness": {
+        "spearman_tie_aware": 0.59,
+        "top10_overlap": 2
+      },
+      "ablation_clean": {
+        "spearman_tie_aware": 0.5895,
+        "top10_overlap": 2
+      }
+    },
+    "pagerank_clean": {
+      "in_cites_clean": {
+        "spearman_tie_aware": 0.9583,
+        "top10_overlap": 5
+      },
+      "pagerank_clean": {
+        "spearman_tie_aware": 1.0,
+        "top10_overlap": 10
+      },
+      "betweenness": {
+        "spearman_tie_aware": 0.5278,
+        "top10_overlap": 2
+      },
+      "ablation_clean": {
+        "spearman_tie_aware": 0.546,
+        "top10_overlap": 2
+      }
+    },
+    "betweenness": {
+      "in_cites_clean": {
+        "spearman_tie_aware": 0.59,
+        "top10_overlap": 2
+      },
+      "pagerank_clean": {
+        "spearman_tie_aware": 0.5278,
+        "top10_overlap": 2
+      },
+      "betweenness": {
+        "spearman_tie_aware": 1.0,
+        "top10_overlap": 10
+      },
+      "ablation_clean": {
+        "spearman_tie_aware": 0.9312,
+        "top10_overlap": 6
+      }
+    },
+    "ablation_clean": {
+      "in_cites_clean": {
+        "spearman_tie_aware": 0.5895,
+        "top10_overlap": 2
+      },
+      "pagerank_clean": {
+        "spearman_tie_aware": 0.546,
+        "top10_overlap": 2
+      },
+      "betweenness": {
+        "spearman_tie_aware": 0.9312,
+        "top10_overlap": 6
+      },
+      "ablation_clean": {
+        "spearman_tie_aware": 1.0,
+        "top10_overlap": 10
+      }
+    }
+  }
+}
