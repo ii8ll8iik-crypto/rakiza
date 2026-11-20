@@ -40,7 +40,7 @@ python3 ask.py
 python3 audit.py W4224073284 10.1186/s13007-023-01096-w --json
 
 # 4. Interactive node-removal impact simulation
-python3 audit.py W3009235851 --simulate
+python3 audit.py W3017855299 --simulate
 
 # 5. Multi-regime sample sensitivity verification
 python3 sensitivity.py
