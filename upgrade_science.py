@@ -1,154 +1,154 @@
-im["pagerank_clean"]o["pagerank_clean"]t jso["pagerank_clean"], sub["pagerank_clean"]["pagerank_clean"]oc["pagerank_clean"]ss
-f["pagerank_clean"]om coll["pagerank_clean"]ctio["pagerank_clean"]s im["pagerank_clean"]o["pagerank_clean"]t d["pagerank_clean"]qu["pagerank_clean"]
+import json, subprocess
+from collections import deque
 
-d["pagerank_clean"]f ["pagerank_clean"]u["pagerank_clean"]_["pagerank_clean"]["pagerank_clean"]l(db, stmt, mod["pagerank_clean"]=No["pagerank_clean"]["pagerank_clean"]):
-    cmd = [["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]l["pagerank_clean"]t["pagerank_clean"]["pagerank_clean"], ["pagerank_clean"]--d["pagerank_clean"]t["pagerank_clean"]b["pagerank_clean"]s["pagerank_clean"]["pagerank_clean"], db] + ([["pagerank_clean"]--mod["pagerank_clean"]["pagerank_clean"], mod["pagerank_clean"]] if mod["pagerank_clean"] ["pagerank_clean"]ls["pagerank_clean"] []) + [stmt]
-    ["pagerank_clean"]["pagerank_clean"]tu["pagerank_clean"]["pagerank_clean"] sub["pagerank_clean"]["pagerank_clean"]oc["pagerank_clean"]ss.["pagerank_clean"]u["pagerank_clean"](cmd, c["pagerank_clean"]["pagerank_clean"]tu["pagerank_clean"]["pagerank_clean"]_out["pagerank_clean"]ut=T["pagerank_clean"]u["pagerank_clean"], t["pagerank_clean"]xt=T["pagerank_clean"]u["pagerank_clean"], ch["pagerank_clean"]c["pagerank_clean"]=T["pagerank_clean"]u["pagerank_clean"]).stdout
+def run_rel(db, stmt, mode=None):
+    cmd = ["relate", "--database", db] + (["--mode", mode] if mode else []) + [stmt]
+    return subprocess.run(cmd, capture_output=True, text=True, check=True).stdout
 
-# 1. Assi["pagerank_clean"]["pagerank_clean"] t["pagerank_clean"]m["pagerank_clean"]o["pagerank_clean"]["pagerank_clean"]l ti["pagerank_clean"]["pagerank_clean"]s i["pagerank_clean"]sid["pagerank_clean"] c["pagerank_clean"]s["pagerank_clean"].["pagerank_clean"]l
-["pagerank_clean"]ul["pagerank_clean"]s = [
-    (["pagerank_clean"]AMBIGUOUS_DATE["pagerank_clean"], ["pagerank_clean"]["pagerank_clean"].y["pagerank_clean"]["pagerank_clean"]["pagerank_clean"] = 0 OR ["pagerank_clean"].d["pagerank_clean"]t["pagerank_clean"] ENDS WITH '-01-01'["pagerank_clean"]),
-    (["pagerank_clean"]PRE_NOTICE["pagerank_clean"], ["pagerank_clean"]["pagerank_clean"].y["pagerank_clean"]["pagerank_clean"]["pagerank_clean"] > 0 AND NOT (["pagerank_clean"].d["pagerank_clean"]t["pagerank_clean"] ENDS WITH '-01-01') AND ["pagerank_clean"].d["pagerank_clean"]t["pagerank_clean"] < '2023-10-18'["pagerank_clean"]),
-    (["pagerank_clean"]LAG_0_6M["pagerank_clean"], ["pagerank_clean"]NOT (["pagerank_clean"].d["pagerank_clean"]t["pagerank_clean"] ENDS WITH '-01-01') AND ["pagerank_clean"].d["pagerank_clean"]t["pagerank_clean"] >= '2023-10-18' AND ["pagerank_clean"].d["pagerank_clean"]t["pagerank_clean"] < '2024-04-18'["pagerank_clean"]),
-    (["pagerank_clean"]POST_6_12M["pagerank_clean"], ["pagerank_clean"]NOT (["pagerank_clean"].d["pagerank_clean"]t["pagerank_clean"] ENDS WITH '-01-01') AND ["pagerank_clean"].d["pagerank_clean"]t["pagerank_clean"] >= '2024-04-18' AND ["pagerank_clean"].d["pagerank_clean"]t["pagerank_clean"] < '2024-10-18'["pagerank_clean"]),
-    (["pagerank_clean"]POST_12M_PLUS["pagerank_clean"], ["pagerank_clean"]NOT (["pagerank_clean"].d["pagerank_clean"]t["pagerank_clean"] ENDS WITH '-01-01') AND ["pagerank_clean"].d["pagerank_clean"]t["pagerank_clean"] >= '2024-10-18'["pagerank_clean"]),
+# 1. Assign temporal tiers inside case.rl
+rules = [
+    ("AMBIGUOUS_DATE", "p.year = 0 OR p.date ENDS WITH '-01-01'"),
+    ("PRE_NOTICE", "p.year > 0 AND NOT (p.date ENDS WITH '-01-01') AND p.date < '2023-10-18'"),
+    ("LAG_0_6M", "NOT (p.date ENDS WITH '-01-01') AND p.date >= '2023-10-18' AND p.date < '2024-04-18'"),
+    ("POST_6_12M", "NOT (p.date ENDS WITH '-01-01') AND p.date >= '2024-04-18' AND p.date < '2024-10-18'"),
+    ("POST_12M_PLUS", "NOT (p.date ENDS WITH '-01-01') AND p.date >= '2024-10-18'"),
 ]
-fo["pagerank_clean"] ti["pagerank_clean"]["pagerank_clean"], co["pagerank_clean"]d i["pagerank_clean"] ["pagerank_clean"]ul["pagerank_clean"]s:
-    ["pagerank_clean"]u["pagerank_clean"]_["pagerank_clean"]["pagerank_clean"]l(["pagerank_clean"]c["pagerank_clean"]s["pagerank_clean"].["pagerank_clean"]l["pagerank_clean"], f["pagerank_clean"]MATCH (["pagerank_clean"]:P["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]) WHERE ["pagerank_clean"].id <> 'W4224073284' AND ({co["pagerank_clean"]d}) SET ["pagerank_clean"].t["pagerank_clean"]m["pagerank_clean"]o["pagerank_clean"]["pagerank_clean"]l_ti["pagerank_clean"]["pagerank_clean"] = '{ti["pagerank_clean"]["pagerank_clean"]}'["pagerank_clean"])
+for tier, cond in rules:
+    run_rel("case.rl", f"MATCH (p:Paper) WHERE p.id <> 'W4224073284' AND ({cond}) SET p.temporal_tier = '{tier}'")
 
-# 2. Lo["pagerank_clean"]d wo["pagerank_clean"]["pagerank_clean"]s.jso["pagerank_clean"] ["pagerank_clean"]["pagerank_clean"]d s["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]t["pagerank_clean"] t["pagerank_clean"]m["pagerank_clean"]o["pagerank_clean"]["pagerank_clean"]lly v["pagerank_clean"]lid vs. i["pagerank_clean"]v["pagerank_clean"]["pagerank_clean"]t["pagerank_clean"]d ["pagerank_clean"]d["pagerank_clean"]["pagerank_clean"]s (citi["pagerank_clean"]["pagerank_clean"]_y["pagerank_clean"]["pagerank_clean"]["pagerank_clean"] < cit["pagerank_clean"]d_y["pagerank_clean"]["pagerank_clean"]["pagerank_clean"])
-with o["pagerank_clean"]["pagerank_clean"]["pagerank_clean"](["pagerank_clean"]wo["pagerank_clean"]["pagerank_clean"]s.jso["pagerank_clean"]["pagerank_clean"], ["pagerank_clean"]["pagerank_clean"]codi["pagerank_clean"]["pagerank_clean"]=["pagerank_clean"]utf-8["pagerank_clean"]) ["pagerank_clean"]s f:
-    wo["pagerank_clean"]["pagerank_clean"]s = jso["pagerank_clean"].lo["pagerank_clean"]d(f)
-with o["pagerank_clean"]["pagerank_clean"]["pagerank_clean"](["pagerank_clean"]b["pagerank_clean"]id["pagerank_clean"]["pagerank_clean"].jso["pagerank_clean"]["pagerank_clean"], ["pagerank_clean"]["pagerank_clean"]codi["pagerank_clean"]["pagerank_clean"]=["pagerank_clean"]utf-8["pagerank_clean"]) ["pagerank_clean"]s f:
-    b["pagerank_clean"]id["pagerank_clean"]["pagerank_clean"]_m["pagerank_clean"]["pagerank_clean"] = jso["pagerank_clean"].lo["pagerank_clean"]d(f)
+# 2. Load works.json and separate temporally valid vs. inverted edges (citing_year < cited_year)
+with open("works.json", encoding="utf-8") as f:
+    works = json.load(f)
+with open("bridge.json", encoding="utf-8") as f:
+    bridge_map = json.load(f)
 
-["pagerank_clean"]od["pagerank_clean"]s = so["pagerank_clean"]t["pagerank_clean"]d(wo["pagerank_clean"]["pagerank_clean"]s.["pagerank_clean"]["pagerank_clean"]ys())
-["pagerank_clean"]dj_["pagerank_clean"]["pagerank_clean"]w = {u: [] fo["pagerank_clean"] u i["pagerank_clean"] ["pagerank_clean"]od["pagerank_clean"]s}
-["pagerank_clean"]dj_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"] = {u: [] fo["pagerank_clean"] u i["pagerank_clean"] ["pagerank_clean"]od["pagerank_clean"]s}
-i["pagerank_clean"]v["pagerank_clean"]["pagerank_clean"]t["pagerank_clean"]d_["pagerank_clean"]d["pagerank_clean"]["pagerank_clean"]s = []
+nodes = sorted(works.keys())
+adj_raw = {u: [] for u in nodes}
+adj_clean = {u: [] for u in nodes}
+inverted_edges = []
 
-fo["pagerank_clean"] u i["pagerank_clean"] ["pagerank_clean"]od["pagerank_clean"]s:
-    uy = i["pagerank_clean"]t(wo["pagerank_clean"]["pagerank_clean"]s[u].["pagerank_clean"]["pagerank_clean"]t(["pagerank_clean"]y["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]) o["pagerank_clean"] 0)
-    s["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]_t["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]ts = s["pagerank_clean"]t()
-    fo["pagerank_clean"] v i["pagerank_clean"] wo["pagerank_clean"]["pagerank_clean"]s[u].["pagerank_clean"]["pagerank_clean"]t(["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]fs["pagerank_clean"], []):
-        if v i["pagerank_clean"] wo["pagerank_clean"]["pagerank_clean"]s ["pagerank_clean"]["pagerank_clean"]d v != u ["pagerank_clean"]["pagerank_clean"]d v ["pagerank_clean"]ot i["pagerank_clean"] s["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]_t["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]ts:
-            s["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]_t["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]ts.["pagerank_clean"]dd(v)
-            ["pagerank_clean"]dj_["pagerank_clean"]["pagerank_clean"]w[u].["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]d(v)
-            vy = i["pagerank_clean"]t(wo["pagerank_clean"]["pagerank_clean"]s[v].["pagerank_clean"]["pagerank_clean"]t(["pagerank_clean"]y["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]) o["pagerank_clean"] 0)
-            if uy > 0 ["pagerank_clean"]["pagerank_clean"]d vy > 0 ["pagerank_clean"]["pagerank_clean"]d uy < vy:
-                i["pagerank_clean"]v["pagerank_clean"]["pagerank_clean"]t["pagerank_clean"]d_["pagerank_clean"]d["pagerank_clean"]["pagerank_clean"]s.["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]d({["pagerank_clean"]s["pagerank_clean"]c["pagerank_clean"]: u, ["pagerank_clean"]s["pagerank_clean"]c_y["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]: uy, ["pagerank_clean"]dst["pagerank_clean"]: v, ["pagerank_clean"]dst_y["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]: vy})
-            ["pagerank_clean"]ls["pagerank_clean"]:
-                ["pagerank_clean"]dj_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"][u].["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]d(v)
+for u in nodes:
+    uy = int(works[u].get("year") or 0)
+    seen_targets = set()
+    for v in works[u].get("refs", []):
+        if v in works and v != u and v not in seen_targets:
+            seen_targets.add(v)
+            adj_raw[u].append(v)
+            vy = int(works[v].get("year") or 0)
+            if uy > 0 and vy > 0 and uy < vy:
+                inverted_edges.append({"src": u, "src_year": uy, "dst": v, "dst_year": vy})
+            else:
+                adj_clean[u].append(v)
 
-d["pagerank_clean"]f com["pagerank_clean"]ut["pagerank_clean"]_["pagerank_clean"]bl["pagerank_clean"]tio["pagerank_clean"](["pagerank_clean"]dj):
-    d["pagerank_clean"]f ["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]ch(st["pagerank_clean"]["pagerank_clean"]t, bloc["pagerank_clean"]["pagerank_clean"]d=No["pagerank_clean"]["pagerank_clean"]):
-        s["pagerank_clean"]["pagerank_clean"]["pagerank_clean"] = {st["pagerank_clean"]["pagerank_clean"]t}
-        q = d["pagerank_clean"]qu["pagerank_clean"]([st["pagerank_clean"]["pagerank_clean"]t])
-        whil["pagerank_clean"] q:
-            cu["pagerank_clean"] = q.["pagerank_clean"]o["pagerank_clean"]l["pagerank_clean"]ft()
-            fo["pagerank_clean"] ["pagerank_clean"]xt i["pagerank_clean"] ["pagerank_clean"]dj[cu["pagerank_clean"]]:
-                if ["pagerank_clean"]xt != bloc["pagerank_clean"]["pagerank_clean"]d ["pagerank_clean"]["pagerank_clean"]d ["pagerank_clean"]xt ["pagerank_clean"]ot i["pagerank_clean"] s["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]:
-                    s["pagerank_clean"]["pagerank_clean"]["pagerank_clean"].["pagerank_clean"]dd(["pagerank_clean"]xt)
-                    q.["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]d(["pagerank_clean"]xt)
-        s["pagerank_clean"]["pagerank_clean"]["pagerank_clean"].["pagerank_clean"]["pagerank_clean"]mov["pagerank_clean"](st["pagerank_clean"]["pagerank_clean"]t)
-        ["pagerank_clean"]["pagerank_clean"]tu["pagerank_clean"]["pagerank_clean"] s["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]
-    b["pagerank_clean"]s["pagerank_clean"] = {u: ["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]ch(u) fo["pagerank_clean"] u i["pagerank_clean"] ["pagerank_clean"]od["pagerank_clean"]s}
+def compute_ablation(adj):
+    def reach(start, blocked=None):
+        seen = {start}
+        q = deque([start])
+        while q:
+            cur = q.popleft()
+            for nxt in adj[cur]:
+                if nxt != blocked and nxt not in seen:
+                    seen.add(nxt)
+                    q.append(nxt)
+        seen.remove(start)
+        return seen
+    base = {u: reach(u) for u in nodes}
     loss = {}
-    fo["pagerank_clean"] t i["pagerank_clean"] ["pagerank_clean"]od["pagerank_clean"]s:
-        b_c["pagerank_clean"]t = sum(l["pagerank_clean"]["pagerank_clean"](b["pagerank_clean"]s["pagerank_clean"][u] - {t}) fo["pagerank_clean"] u i["pagerank_clean"] ["pagerank_clean"]od["pagerank_clean"]s if u != t)
-        ["pagerank_clean"]_c["pagerank_clean"]t = sum(l["pagerank_clean"]["pagerank_clean"](["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]ch(u, bloc["pagerank_clean"]["pagerank_clean"]d=t)) fo["pagerank_clean"] u i["pagerank_clean"] ["pagerank_clean"]od["pagerank_clean"]s if u != t)
-        loss[t] = b_c["pagerank_clean"]t - ["pagerank_clean"]_c["pagerank_clean"]t
-    ["pagerank_clean"]["pagerank_clean"]tu["pagerank_clean"]["pagerank_clean"] loss
+    for t in nodes:
+        b_cnt = sum(len(base[u] - {t}) for u in nodes if u != t)
+        n_cnt = sum(len(reach(u, blocked=t)) for u in nodes if u != t)
+        loss[t] = b_cnt - n_cnt
+    return loss
 
-d["pagerank_clean"]f com["pagerank_clean"]ut["pagerank_clean"]_["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"](["pagerank_clean"]dj, d=0.85, it["pagerank_clean"]["pagerank_clean"]s=100):
-    ["pagerank_clean"] = l["pagerank_clean"]["pagerank_clean"](["pagerank_clean"]od["pagerank_clean"]s)
-    ["pagerank_clean"]["pagerank_clean"] = {u: 1.0 / ["pagerank_clean"] fo["pagerank_clean"] u i["pagerank_clean"] ["pagerank_clean"]od["pagerank_clean"]s}
-    fo["pagerank_clean"] _ i["pagerank_clean"] ["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"](it["pagerank_clean"]["pagerank_clean"]s):
-        ["pagerank_clean"]xt = {u: (1.0 - d) / ["pagerank_clean"] fo["pagerank_clean"] u i["pagerank_clean"] ["pagerank_clean"]od["pagerank_clean"]s}
-        d["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]li["pagerank_clean"]["pagerank_clean"] = sum(["pagerank_clean"]["pagerank_clean"][u] fo["pagerank_clean"] u i["pagerank_clean"] ["pagerank_clean"]od["pagerank_clean"]s if ["pagerank_clean"]ot ["pagerank_clean"]dj[u])
-        fo["pagerank_clean"] u i["pagerank_clean"] ["pagerank_clean"]od["pagerank_clean"]s:
-            ["pagerank_clean"]xt[u] += d * d["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]li["pagerank_clean"]["pagerank_clean"] / ["pagerank_clean"]
-            if ["pagerank_clean"]dj[u]:
-                sh["pagerank_clean"]["pagerank_clean"]["pagerank_clean"] = d * ["pagerank_clean"]["pagerank_clean"][u] / l["pagerank_clean"]["pagerank_clean"](["pagerank_clean"]dj[u])
-                fo["pagerank_clean"] v i["pagerank_clean"] ["pagerank_clean"]dj[u]:
-                    ["pagerank_clean"]xt[v] += sh["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]
-        ["pagerank_clean"]["pagerank_clean"] = ["pagerank_clean"]xt
-    ["pagerank_clean"]["pagerank_clean"]tu["pagerank_clean"]["pagerank_clean"] ["pagerank_clean"]["pagerank_clean"]
+def compute_pagerank(adj, d=0.85, iters=100):
+    n = len(nodes)
+    pr = {u: 1.0 / n for u in nodes}
+    for _ in range(iters):
+        nxt = {u: (1.0 - d) / n for u in nodes}
+        dangling = sum(pr[u] for u in nodes if not adj[u])
+        for u in nodes:
+            nxt[u] += d * dangling / n
+            if adj[u]:
+                share = d * pr[u] / len(adj[u])
+                for v in adj[u]:
+                    nxt[v] += share
+        pr = nxt
+    return pr
 
-d["pagerank_clean"]f ["pagerank_clean"]v["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]_["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]s(v["pagerank_clean"]l_m["pagerank_clean"]["pagerank_clean"]):
-    it["pagerank_clean"]ms = so["pagerank_clean"]t["pagerank_clean"]d(v["pagerank_clean"]l_m["pagerank_clean"]["pagerank_clean"].it["pagerank_clean"]ms(), ["pagerank_clean"]["pagerank_clean"]y=l["pagerank_clean"]mbd["pagerank_clean"] x: x[1], ["pagerank_clean"]["pagerank_clean"]v["pagerank_clean"]["pagerank_clean"]s["pagerank_clean"]=T["pagerank_clean"]u["pagerank_clean"])
-    ["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]s = {}
+def average_ranks(val_map):
+    items = sorted(val_map.items(), key=lambda x: x[1], reverse=True)
+    ranks = {}
     i = 0
-    whil["pagerank_clean"] i < l["pagerank_clean"]["pagerank_clean"](it["pagerank_clean"]ms):
+    while i < len(items):
         j = i
-        whil["pagerank_clean"] j + 1 < l["pagerank_clean"]["pagerank_clean"](it["pagerank_clean"]ms) ["pagerank_clean"]["pagerank_clean"]d it["pagerank_clean"]ms[j + 1][1] == it["pagerank_clean"]ms[i][1]:
+        while j + 1 < len(items) and items[j + 1][1] == items[i][1]:
             j += 1
-        ["pagerank_clean"]v["pagerank_clean"]_["pagerank_clean"] = (i + j) / 2.0 + 1.0
-        fo["pagerank_clean"] ["pagerank_clean"] i["pagerank_clean"] ["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"](i, j + 1):
-            ["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]s[it["pagerank_clean"]ms[["pagerank_clean"]][0]] = ["pagerank_clean"]v["pagerank_clean"]_["pagerank_clean"]
+        avg_r = (i + j) / 2.0 + 1.0
+        for k in range(i, j + 1):
+            ranks[items[k][0]] = avg_r
         i = j + 1
-    ["pagerank_clean"]["pagerank_clean"]tu["pagerank_clean"]["pagerank_clean"] ["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]s
+    return ranks
 
-d["pagerank_clean"]f ti["pagerank_clean"]_["pagerank_clean"]w["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]_s["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]m["pagerank_clean"]["pagerank_clean"](m1, m2):
-    ["pagerank_clean"]1, ["pagerank_clean"]2 = ["pagerank_clean"]v["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]_["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]s(m1), ["pagerank_clean"]v["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]_["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]s(m2)
-    ["pagerank_clean"] = l["pagerank_clean"]["pagerank_clean"](["pagerank_clean"]od["pagerank_clean"]s)
-    m["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]1 = sum(["pagerank_clean"]1.v["pagerank_clean"]lu["pagerank_clean"]s()) / ["pagerank_clean"]
-    m["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]2 = sum(["pagerank_clean"]2.v["pagerank_clean"]lu["pagerank_clean"]s()) / ["pagerank_clean"]
-    ["pagerank_clean"]um = sum((["pagerank_clean"]1[u] - m["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]1) * (["pagerank_clean"]2[u] - m["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]2) fo["pagerank_clean"] u i["pagerank_clean"] ["pagerank_clean"]od["pagerank_clean"]s)
-    d["pagerank_clean"]["pagerank_clean"]1 = sum((["pagerank_clean"]1[u] - m["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]1) ** 2 fo["pagerank_clean"] u i["pagerank_clean"] ["pagerank_clean"]od["pagerank_clean"]s) ** 0.5
-    d["pagerank_clean"]["pagerank_clean"]2 = sum((["pagerank_clean"]2[u] - m["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]2) ** 2 fo["pagerank_clean"] u i["pagerank_clean"] ["pagerank_clean"]od["pagerank_clean"]s) ** 0.5
-    ["pagerank_clean"]["pagerank_clean"]tu["pagerank_clean"]["pagerank_clean"] ["pagerank_clean"]ou["pagerank_clean"]d(["pagerank_clean"]um / (d["pagerank_clean"]["pagerank_clean"]1 * d["pagerank_clean"]["pagerank_clean"]2), 4) if d["pagerank_clean"]["pagerank_clean"]1 ["pagerank_clean"]["pagerank_clean"]d d["pagerank_clean"]["pagerank_clean"]2 ["pagerank_clean"]ls["pagerank_clean"] 0.0
+def tie_aware_spearman(m1, m2):
+    r1, r2 = average_ranks(m1), average_ranks(m2)
+    n = len(nodes)
+    mean1 = sum(r1.values()) / n
+    mean2 = sum(r2.values()) / n
+    num = sum((r1[u] - mean1) * (r2[u] - mean2) for u in nodes)
+    den1 = sum((r1[u] - mean1) ** 2 for u in nodes) ** 0.5
+    den2 = sum((r2[u] - mean2) ** 2 for u in nodes) ** 0.5
+    return round(num / (den1 * den2), 4) if den1 and den2 else 0.0
 
-loss_["pagerank_clean"]["pagerank_clean"]w = com["pagerank_clean"]ut["pagerank_clean"]_["pagerank_clean"]bl["pagerank_clean"]tio["pagerank_clean"](["pagerank_clean"]dj_["pagerank_clean"]["pagerank_clean"]w)
-loss_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"] = com["pagerank_clean"]ut["pagerank_clean"]_["pagerank_clean"]bl["pagerank_clean"]tio["pagerank_clean"](["pagerank_clean"]dj_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"])
-["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"] = com["pagerank_clean"]ut["pagerank_clean"]_["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"](["pagerank_clean"]dj_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"])
-i["pagerank_clean"]_cit["pagerank_clean"]s_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"] = {u: sum(1 fo["pagerank_clean"] s["pagerank_clean"]c i["pagerank_clean"] ["pagerank_clean"]od["pagerank_clean"]s if u i["pagerank_clean"] ["pagerank_clean"]dj_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"][s["pagerank_clean"]c]) fo["pagerank_clean"] u i["pagerank_clean"] ["pagerank_clean"]od["pagerank_clean"]s}
-b["pagerank_clean"]id["pagerank_clean"]["pagerank_clean"]_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"] = {u: flo["pagerank_clean"]t(b["pagerank_clean"]id["pagerank_clean"]["pagerank_clean"]_m["pagerank_clean"]["pagerank_clean"].["pagerank_clean"]["pagerank_clean"]t(u, 0.0)) fo["pagerank_clean"] u i["pagerank_clean"] ["pagerank_clean"]od["pagerank_clean"]s}
+loss_raw = compute_ablation(adj_raw)
+loss_clean = compute_ablation(adj_clean)
+pagerank_clean = compute_pagerank(adj_clean)
+in_cites_clean = {u: sum(1 for src in nodes if u in adj_clean[src]) for u in nodes}
+bridge_clean = {u: float(bridge_map.get(u, 0.0)) for u in nodes}
 
-# 3. T["pagerank_clean"]["pagerank_clean"] ["pagerank_clean"]d["pagerank_clean"]["pagerank_clean"]s ["pagerank_clean"]["pagerank_clean"]d i["pagerank_clean"]j["pagerank_clean"]ct cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"] vs ["pagerank_clean"]["pagerank_clean"]w ["pagerank_clean"]bl["pagerank_clean"]tio["pagerank_clean"] & P["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]R["pagerank_clean"]["pagerank_clean"]["pagerank_clean"] i["pagerank_clean"]to ["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]h.["pagerank_clean"]l
-["pagerank_clean"]u["pagerank_clean"]_["pagerank_clean"]["pagerank_clean"]l(["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]h.["pagerank_clean"]l["pagerank_clean"], ["pagerank_clean"]MATCH (["pagerank_clean"]:P["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"])-[["pagerank_clean"]:CITES]->(b:P["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]) SET ["pagerank_clean"].t["pagerank_clean"]m["pagerank_clean"]o["pagerank_clean"]["pagerank_clean"]l_v["pagerank_clean"]lid = (["pagerank_clean"].y["pagerank_clean"]["pagerank_clean"]["pagerank_clean"] = 0 OR b.y["pagerank_clean"]["pagerank_clean"]["pagerank_clean"] = 0 OR ["pagerank_clean"].y["pagerank_clean"]["pagerank_clean"]["pagerank_clean"] >= b.y["pagerank_clean"]["pagerank_clean"]["pagerank_clean"])["pagerank_clean"])
-fo["pagerank_clean"] u i["pagerank_clean"] ["pagerank_clean"]od["pagerank_clean"]s:
-    ["pagerank_clean"]u["pagerank_clean"]_["pagerank_clean"]["pagerank_clean"]l(["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]h.["pagerank_clean"]l["pagerank_clean"], f["pagerank_clean"]MATCH (["pagerank_clean"]:P["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"] {{id:'{u}'}}) SET ["pagerank_clean"].["pagerank_clean"]bl["pagerank_clean"]tio["pagerank_clean"]_loss = {loss_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"][u]}, ["pagerank_clean"].["pagerank_clean"]bl["pagerank_clean"]tio["pagerank_clean"]_["pagerank_clean"]["pagerank_clean"]w = {loss_["pagerank_clean"]["pagerank_clean"]w[u]}, ["pagerank_clean"].["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"] = {["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"][u]:.8f}["pagerank_clean"])
+# 3. Tag edges and inject clean vs raw ablation & PageRank into graph.rl
+run_rel("graph.rl", "MATCH (a:Paper)-[r:CITES]->(b:Paper) SET r.temporal_valid = (a.year = 0 OR b.year = 0 OR a.year >= b.year)")
+for u in nodes:
+    run_rel("graph.rl", f"MATCH (p:Paper {{id:'{u}'}}) SET p.ablation_loss = {loss_clean[u]}, p.ablation_raw = {loss_raw[u]}, p.pagerank = {pagerank_clean[u]:.8f}")
 
-with o["pagerank_clean"]["pagerank_clean"]["pagerank_clean"](["pagerank_clean"]["pagerank_clean"]bl["pagerank_clean"]tio["pagerank_clean"].jso["pagerank_clean"]["pagerank_clean"], ["pagerank_clean"]w["pagerank_clean"], ["pagerank_clean"]["pagerank_clean"]codi["pagerank_clean"]["pagerank_clean"]=["pagerank_clean"]utf-8["pagerank_clean"]) ["pagerank_clean"]s f:
-    jso["pagerank_clean"].dum["pagerank_clean"](loss_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"], f, i["pagerank_clean"]d["pagerank_clean"]["pagerank_clean"]t=2)
+with open("ablation.json", "w", encoding="utf-8") as f:
+    json.dump(loss_clean, f, indent=2)
 
-m["pagerank_clean"]t["pagerank_clean"]ics = {
-    ["pagerank_clean"]i["pagerank_clean"]_cit["pagerank_clean"]s_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]: i["pagerank_clean"]_cit["pagerank_clean"]s_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"],
-    ["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]: ["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"],
-    ["pagerank_clean"]b["pagerank_clean"]tw["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]ss["pagerank_clean"]: b["pagerank_clean"]id["pagerank_clean"]["pagerank_clean"]_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"],
-    ["pagerank_clean"]["pagerank_clean"]bl["pagerank_clean"]tio["pagerank_clean"]_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]: loss_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"],
+metrics = {
+    "in_cites_clean": in_cites_clean,
+    "pagerank_clean": pagerank_clean,
+    "betweenness": bridge_clean,
+    "ablation_clean": loss_clean,
 }
-to["pagerank_clean"]10_s["pagerank_clean"]ts = {["pagerank_clean"]: s["pagerank_clean"]t(so["pagerank_clean"]t["pagerank_clean"]d(["pagerank_clean"]od["pagerank_clean"]s, ["pagerank_clean"]["pagerank_clean"]y=l["pagerank_clean"]mbd["pagerank_clean"] u: m[u], ["pagerank_clean"]["pagerank_clean"]v["pagerank_clean"]["pagerank_clean"]s["pagerank_clean"]=T["pagerank_clean"]u["pagerank_clean"])[:10]) fo["pagerank_clean"] ["pagerank_clean"], m i["pagerank_clean"] m["pagerank_clean"]t["pagerank_clean"]ics.it["pagerank_clean"]ms()}
-["pagerank_clean"]["pagerank_clean"]i["pagerank_clean"]wis["pagerank_clean"] = {}
-fo["pagerank_clean"] m1 i["pagerank_clean"] m["pagerank_clean"]t["pagerank_clean"]ics:
-    ["pagerank_clean"]["pagerank_clean"]i["pagerank_clean"]wis["pagerank_clean"][m1] = {}
-    fo["pagerank_clean"] m2 i["pagerank_clean"] m["pagerank_clean"]t["pagerank_clean"]ics:
-        ["pagerank_clean"]["pagerank_clean"]i["pagerank_clean"]wis["pagerank_clean"][m1][m2] = {
-            ["pagerank_clean"]s["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]m["pagerank_clean"]["pagerank_clean"]_ti["pagerank_clean"]_["pagerank_clean"]w["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]: ti["pagerank_clean"]_["pagerank_clean"]w["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]_s["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]m["pagerank_clean"]["pagerank_clean"](m["pagerank_clean"]t["pagerank_clean"]ics[m1], m["pagerank_clean"]t["pagerank_clean"]ics[m2]),
-            ["pagerank_clean"]to["pagerank_clean"]10_ov["pagerank_clean"]["pagerank_clean"]l["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]: l["pagerank_clean"]["pagerank_clean"](to["pagerank_clean"]10_s["pagerank_clean"]ts[m1] & to["pagerank_clean"]10_s["pagerank_clean"]ts[m2]),
+top10_sets = {k: set(sorted(nodes, key=lambda u: m[u], reverse=True)[:10]) for k, m in metrics.items()}
+pairwise = {}
+for m1 in metrics:
+    pairwise[m1] = {}
+    for m2 in metrics:
+        pairwise[m1][m2] = {
+            "spearman_tie_aware": tie_aware_spearman(metrics[m1], metrics[m2]),
+            "top10_overlap": len(top10_sets[m1] & top10_sets[m2]),
         }
 
-to["pagerank_clean"]10_["pagerank_clean"]["pagerank_clean"]w = so["pagerank_clean"]t["pagerank_clean"]d(["pagerank_clean"]od["pagerank_clean"]s, ["pagerank_clean"]["pagerank_clean"]y=l["pagerank_clean"]mbd["pagerank_clean"] u: loss_["pagerank_clean"]["pagerank_clean"]w[u], ["pagerank_clean"]["pagerank_clean"]v["pagerank_clean"]["pagerank_clean"]s["pagerank_clean"]=T["pagerank_clean"]u["pagerank_clean"])[:10]
-to["pagerank_clean"]10_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"] = so["pagerank_clean"]t["pagerank_clean"]d(["pagerank_clean"]od["pagerank_clean"]s, ["pagerank_clean"]["pagerank_clean"]y=l["pagerank_clean"]mbd["pagerank_clean"] u: loss_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"][u], ["pagerank_clean"]["pagerank_clean"]v["pagerank_clean"]["pagerank_clean"]s["pagerank_clean"]=T["pagerank_clean"]u["pagerank_clean"])[:10]
-com["pagerank_clean"]_["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]o["pagerank_clean"]t = {
-    ["pagerank_clean"]tot["pagerank_clean"]l_["pagerank_clean"]d["pagerank_clean"]["pagerank_clean"]s["pagerank_clean"]: sum(l["pagerank_clean"]["pagerank_clean"](v) fo["pagerank_clean"] v i["pagerank_clean"] ["pagerank_clean"]dj_["pagerank_clean"]["pagerank_clean"]w.v["pagerank_clean"]lu["pagerank_clean"]s()),
-    ["pagerank_clean"]t["pagerank_clean"]m["pagerank_clean"]o["pagerank_clean"]["pagerank_clean"]lly_v["pagerank_clean"]lid_["pagerank_clean"]d["pagerank_clean"]["pagerank_clean"]s["pagerank_clean"]: sum(l["pagerank_clean"]["pagerank_clean"](v) fo["pagerank_clean"] v i["pagerank_clean"] ["pagerank_clean"]dj_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"].v["pagerank_clean"]lu["pagerank_clean"]s()),
-    ["pagerank_clean"]t["pagerank_clean"]m["pagerank_clean"]o["pagerank_clean"]["pagerank_clean"]lly_i["pagerank_clean"]v["pagerank_clean"]["pagerank_clean"]t["pagerank_clean"]d_["pagerank_clean"]d["pagerank_clean"]["pagerank_clean"]s["pagerank_clean"]: l["pagerank_clean"]["pagerank_clean"](i["pagerank_clean"]v["pagerank_clean"]["pagerank_clean"]t["pagerank_clean"]d_["pagerank_clean"]d["pagerank_clean"]["pagerank_clean"]s),
-    ["pagerank_clean"]to["pagerank_clean"]10_ov["pagerank_clean"]["pagerank_clean"]l["pagerank_clean"]["pagerank_clean"]_["pagerank_clean"]["pagerank_clean"]w_vs_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]: l["pagerank_clean"]["pagerank_clean"](s["pagerank_clean"]t(to["pagerank_clean"]10_["pagerank_clean"]["pagerank_clean"]w) & s["pagerank_clean"]t(to["pagerank_clean"]10_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"])),
-    ["pagerank_clean"]b["pagerank_clean"]fo["pagerank_clean"]["pagerank_clean"]_["pagerank_clean"]ft["pagerank_clean"]["pagerank_clean"]_to["pagerank_clean"]10["pagerank_clean"]: [
-        {["pagerank_clean"]id["pagerank_clean"]: u, ["pagerank_clean"]titl["pagerank_clean"]["pagerank_clean"]: wo["pagerank_clean"]["pagerank_clean"]s[u][["pagerank_clean"]titl["pagerank_clean"]["pagerank_clean"]], ["pagerank_clean"]y["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]: wo["pagerank_clean"]["pagerank_clean"]s[u][["pagerank_clean"]y["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]], ["pagerank_clean"]["pagerank_clean"]bl["pagerank_clean"]tio["pagerank_clean"]_["pagerank_clean"]["pagerank_clean"]w["pagerank_clean"]: loss_["pagerank_clean"]["pagerank_clean"]w[u], ["pagerank_clean"]["pagerank_clean"]bl["pagerank_clean"]tio["pagerank_clean"]_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]: loss_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"][u]}
-        fo["pagerank_clean"] u i["pagerank_clean"] to["pagerank_clean"]10_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]
+top10_raw = sorted(nodes, key=lambda u: loss_raw[u], reverse=True)[:10]
+top10_clean = sorted(nodes, key=lambda u: loss_clean[u], reverse=True)[:10]
+comp_report = {
+    "total_edges": sum(len(v) for v in adj_raw.values()),
+    "temporally_valid_edges": sum(len(v) for v in adj_clean.values()),
+    "temporally_inverted_edges": len(inverted_edges),
+    "top10_overlap_raw_vs_clean": len(set(top10_raw) & set(top10_clean)),
+    "before_after_top10": [
+        {"id": u, "title": works[u]["title"], "year": works[u]["year"], "ablation_raw": loss_raw[u], "ablation_clean": loss_clean[u]}
+        for u in top10_clean
     ],
-    ["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]i["pagerank_clean"]wis["pagerank_clean"]_m["pagerank_clean"]t["pagerank_clean"]ic_com["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]iso["pagerank_clean"]["pagerank_clean"]: ["pagerank_clean"]["pagerank_clean"]i["pagerank_clean"]wis["pagerank_clean"],
+    "pairwise_metric_comparison": pairwise,
 }
-with o["pagerank_clean"]["pagerank_clean"]["pagerank_clean"](["pagerank_clean"]m["pagerank_clean"]t["pagerank_clean"]ics_com["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]iso["pagerank_clean"].jso["pagerank_clean"]["pagerank_clean"], ["pagerank_clean"]w["pagerank_clean"], ["pagerank_clean"]["pagerank_clean"]codi["pagerank_clean"]["pagerank_clean"]=["pagerank_clean"]utf-8["pagerank_clean"]) ["pagerank_clean"]s f:
-    jso["pagerank_clean"].dum["pagerank_clean"](com["pagerank_clean"]_["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]o["pagerank_clean"]t, f, i["pagerank_clean"]d["pagerank_clean"]["pagerank_clean"]t=2)
+with open("metrics_comparison.json", "w", encoding="utf-8") as f:
+    json.dump(comp_report, f, indent=2)
 
-["pagerank_clean"]["pagerank_clean"]i["pagerank_clean"]t(f["pagerank_clean"]Ed["pagerank_clean"]["pagerank_clean"]s: tot["pagerank_clean"]l={com["pagerank_clean"]_["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]o["pagerank_clean"]t['tot["pagerank_clean"]l_["pagerank_clean"]d["pagerank_clean"]["pagerank_clean"]s']}, v["pagerank_clean"]lid={com["pagerank_clean"]_["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]o["pagerank_clean"]t['t["pagerank_clean"]m["pagerank_clean"]o["pagerank_clean"]["pagerank_clean"]lly_v["pagerank_clean"]lid_["pagerank_clean"]d["pagerank_clean"]["pagerank_clean"]s']}, i["pagerank_clean"]v["pagerank_clean"]["pagerank_clean"]t["pagerank_clean"]d={com["pagerank_clean"]_["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]o["pagerank_clean"]t['t["pagerank_clean"]m["pagerank_clean"]o["pagerank_clean"]["pagerank_clean"]lly_i["pagerank_clean"]v["pagerank_clean"]["pagerank_clean"]t["pagerank_clean"]d_["pagerank_clean"]d["pagerank_clean"]["pagerank_clean"]s']}["pagerank_clean"])
-["pagerank_clean"]["pagerank_clean"]i["pagerank_clean"]t(f["pagerank_clean"]To["pagerank_clean"]-10 ov["pagerank_clean"]["pagerank_clean"]l["pagerank_clean"]["pagerank_clean"] (["pagerank_clean"]["pagerank_clean"]w vs. t["pagerank_clean"]m["pagerank_clean"]o["pagerank_clean"]["pagerank_clean"]lly cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]d): {com["pagerank_clean"]_["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]o["pagerank_clean"]t['to["pagerank_clean"]10_ov["pagerank_clean"]["pagerank_clean"]l["pagerank_clean"]["pagerank_clean"]_["pagerank_clean"]["pagerank_clean"]w_vs_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]']}/10["pagerank_clean"])
-["pagerank_clean"]["pagerank_clean"]i["pagerank_clean"]t(["pagerank_clean"]S["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]m["pagerank_clean"]["pagerank_clean"] (cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"] ["pagerank_clean"]bl["pagerank_clean"]tio["pagerank_clean"] vs b["pagerank_clean"]tw["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]ss):["pagerank_clean"], ["pagerank_clean"]["pagerank_clean"]i["pagerank_clean"]wis["pagerank_clean"][["pagerank_clean"]["pagerank_clean"]bl["pagerank_clean"]tio["pagerank_clean"]_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]][["pagerank_clean"]b["pagerank_clean"]tw["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]ss["pagerank_clean"]])
-["pagerank_clean"]["pagerank_clean"]i["pagerank_clean"]t(["pagerank_clean"]S["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]m["pagerank_clean"]["pagerank_clean"] (cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"] ["pagerank_clean"]bl["pagerank_clean"]tio["pagerank_clean"] vs ["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"])   :["pagerank_clean"], ["pagerank_clean"]["pagerank_clean"]i["pagerank_clean"]wis["pagerank_clean"][["pagerank_clean"]["pagerank_clean"]bl["pagerank_clean"]tio["pagerank_clean"]_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]][["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]])
-["pagerank_clean"]["pagerank_clean"]i["pagerank_clean"]t(["pagerank_clean"]S["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]m["pagerank_clean"]["pagerank_clean"] (cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"] ["pagerank_clean"]bl["pagerank_clean"]tio["pagerank_clean"] vs i["pagerank_clean"]_cit["pagerank_clean"]s)   :["pagerank_clean"], ["pagerank_clean"]["pagerank_clean"]i["pagerank_clean"]wis["pagerank_clean"][["pagerank_clean"]["pagerank_clean"]bl["pagerank_clean"]tio["pagerank_clean"]_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]][["pagerank_clean"]i["pagerank_clean"]_cit["pagerank_clean"]s_cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]])
-["pagerank_clean"]["pagerank_clean"]i["pagerank_clean"]t(["pagerank_clean"]\["pagerank_clean"]=== To["pagerank_clean"] 10 Cho["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]oi["pagerank_clean"]ts (T["pagerank_clean"]m["pagerank_clean"]o["pagerank_clean"]["pagerank_clean"]lly Co["pagerank_clean"]sist["pagerank_clean"]["pagerank_clean"]t G["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]h) ===["pagerank_clean"])
-["pagerank_clean"]["pagerank_clean"]i["pagerank_clean"]t(["pagerank_clean"]u["pagerank_clean"]_["pagerank_clean"]["pagerank_clean"]l(["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]h.["pagerank_clean"]l["pagerank_clean"], ["pagerank_clean"]MATCH (["pagerank_clean"]:P["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]) RETURN ["pagerank_clean"].titl["pagerank_clean"] AS ["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]["pagerank_clean"], ["pagerank_clean"].y["pagerank_clean"]["pagerank_clean"]["pagerank_clean"] AS y["pagerank_clean"]["pagerank_clean"]["pagerank_clean"], ["pagerank_clean"]ou["pagerank_clean"]d(["pagerank_clean"].b["pagerank_clean"]id["pagerank_clean"]["pagerank_clean"]*10000)/10000.0 AS b["pagerank_clean"]id["pagerank_clean"]["pagerank_clean"], ["pagerank_clean"].["pagerank_clean"]bl["pagerank_clean"]tio["pagerank_clean"]_loss AS cl["pagerank_clean"]["pagerank_clean"]["pagerank_clean"]_["pagerank_clean"]bl["pagerank_clean"]tio["pagerank_clean"], ["pagerank_clean"].["pagerank_clean"]bl["pagerank_clean"]tio["pagerank_clean"]_["pagerank_clean"]["pagerank_clean"]w AS ["pagerank_clean"]["pagerank_clean"]w_["pagerank_clean"]bl["pagerank_clean"]tio["pagerank_clean"] ORDER BY ["pagerank_clean"].["pagerank_clean"]bl["pagerank_clean"]tio["pagerank_clean"]_loss DESC LIMIT 10["pagerank_clean"], ["pagerank_clean"]t["pagerank_clean"]bl["pagerank_clean"]["pagerank_clean"]))
+print(f"Edges: total={comp_report['total_edges']}, valid={comp_report['temporally_valid_edges']}, inverted={comp_report['temporally_inverted_edges']}")
+print(f"Top-10 overlap (raw vs. temporally cleaned): {comp_report['top10_overlap_raw_vs_clean']}/10")
+print("Spearman (clean ablation vs betweenness):", pairwise["ablation_clean"]["betweenness"])
+print("Spearman (clean ablation vs pagerank)   :", pairwise["ablation_clean"]["pagerank_clean"])
+print("Spearman (clean ablation vs in_cites)   :", pairwise["ablation_clean"]["in_cites_clean"])
+print("\n=== Top 10 Chokepoints (Temporally Consistent Graph) ===")
+print(run_rel("graph.rl", "MATCH (p:Paper) RETURN p.title AS paper, p.year AS year, round(p.bridge*10000)/10000.0 AS bridge, p.ablation_loss AS clean_ablation, p.ablation_raw AS raw_ablation ORDER BY p.ablation_loss DESC LIMIT 10", "table"))
